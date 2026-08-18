@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Third Place — a home for loose ideas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas: #ece4d3;
+    --dot: #d9cbae;
+    --ink: #211f1b;
+    --ink-soft: #55503f;
+    --paper: #f3eee2;
+    --accent: #5b5fef;
+    --accent-soft: #eceaff;
+    --danger: #c0473a;
+    --card-cream: #fbf7ee;
+    --card-yellow: #f5d673;
+    --card-sage: #b9cba9;
+    --card-blush: #eab0a1;
+    --card-sky: #a9c8d9;
+    --card-lilac: #c9b7e4;
+    --radius: 10px;
+    --shadow: 0 6px 16px -6px rgba(33,31,27,0.28), 0 2px 4px -2px rgba(33,31,27,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{font-family:'Inter',sans-serif;color:var(--ink);overflow:hidden;background:var(--ink);}
+  .app{display:flex;height:100vh;width:100vw;}
+
+  /* ---------- Access gate ---------- */
+  .gate{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;z-index:200;padding:24px;background-image:radial-gradient(#332f28 1.4px, transparent 1.4px);background-size:26px 26px;overflow-y:auto;}
+  .gate-card{background:var(--paper);border-radius:16px;padding:38px 36px;max-width:440px;width:100%;box-shadow:0 30px 70px -20px rgba(0,0,0,.55);margin:24px 0;}
+  .gate-card.gate-admin{max-width:500px;}
+  .gate-product-mark{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:13px;color:var(--accent);margin-bottom:14px;}
+  .gate-eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;font-weight:700;}
+  .gate-card h1{font-family:'Fraunces',serif;font-weight:600;font-size:25px;margin:0 0 8px;}
+  .gate-card p.sub{color:var(--ink-soft);font-size:13.5px;margin:0 0 22px;line-height:1.55;}
+  .gate-field{margin-bottom:13px;}
+  .gate-field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
+  .gate-field input, .gate-field textarea{width:100%;font-family:inherit;font-size:14px;padding:10px 12px;border-radius:8px;border:1px solid #e2dac6;outline:none;background:#fff;}
+  .gate-field input:focus, .gate-field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .gate-field textarea{resize:vertical;min-height:58px;font-family:inherit;}
+  .gate-mcq{margin-bottom:16px;}
+  .gate-mcq label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:7px;}
+  .gate-mcq-options{display:flex;flex-wrap:wrap;gap:6px;}
+  .gate-mcq-chip{padding:7px 12px;border-radius:20px;border:1px solid #e2dac6;background:#fff;font-size:12px;cursor:pointer;color:var(--ink);font-family:inherit;}
+  .gate-mcq-chip:hover{border-color:var(--accent);}
+  .gate-mcq-chip.selected{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .gate-submit{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;}
+  .gate-submit:hover{background:#4a4ed6;}
+  .gate-footer-link{text-align:center;margin-top:18px;font-size:12.5px;color:var(--ink-soft);}
+  .gate-footer-link a{color:var(--accent);cursor:pointer;text-decoration:none;font-weight:600;}
+  .gate-footer-link a:hover{text-decoration:underline;}
+  .gate-pending-icon{width:52px;height:52px;border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+  .gate-pending-icon svg{width:24px;height:24px;fill:var(--accent);}
+  .gate-error{background:#fbeae6;border:1px solid #e2b7ae;color:var(--danger);border-radius:8px;padding:9px 11px;font-size:12.5px;margin-bottom:12px;display:none;}
+  .gate-error.visible{display:block;}
+  .gate-admin-name{display:flex;align-items:baseline;gap:8px;margin-bottom:18px;}
+  .gate-admin-name span{font-size:12px;color:var(--ink-soft);font-weight:600;flex-shrink:0;}
+  .gate-admin-name input{flex:1;font-family:'Fraunces',serif;font-weight:600;font-size:18px;border:none;background:none;outline:none;border-bottom:1px dashed #cabf9f;padding:2px 0;color:var(--ink);}
+  .gate-section-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700;margin:18px 0 8px;}
+  .gate-scroll{max-height:220px;overflow-y:auto;padding-right:2px;}
+  .gate-request{background:#fff;border:1px solid #e2dac6;border-radius:10px;padding:12px 14px;margin-bottom:8px;}
+  .gate-request .name{font-weight:700;font-size:13.5px;}
+  .gate-request .email{font-size:12px;color:var(--ink-soft);margin-bottom:4px;}
+  .gate-request .note{font-size:12.5px;color:var(--ink-soft);font-style:italic;margin-bottom:6px;}
+  .gate-request .answers{font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:4px;}
+  .gate-request .answers span{background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:2px 8px;}
+  .gate-request-actions{display:flex;gap:8px;}
+  .gate-btn-accept{flex:1;background:#3c5c2c;color:#fff;border:none;border-radius:6px;padding:7px;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .gate-btn-accept:hover{background:#2b4320;}
+  .gate-btn-reject{flex:1;background:none;border:1px solid #e2b7ae;color:var(--danger);border-radius:6px;padding:7px;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .gate-btn-reject:hover{background:#fbeae6;}
+  .gate-member-row{display:flex;align-items:center;gap:9px;font-size:13px;padding:6px 2px;}
+  .gate-member-row .chip-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;}
+  .gate-approved-banner{background:#e2ecd9;border:1px solid #a9c295;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#3c5c2c;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .gate-approved-banner button{background:#3c5c2c;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .gate-empty{font-size:12.5px;color:#a39c86;font-style:italic;}
+  .gate-admin-note{font-size:11.5px;color:#a39c86;margin-top:16px;line-height:1.5;}
+  .gate-admin-corner{position:fixed;bottom:18px;right:20px;background:none;border:none;color:#57534a;font-size:11px;letter-spacing:.04em;cursor:pointer;font-family:inherit;padding:6px 8px;opacity:.55;}
+  .gate-admin-corner:hover{opacity:1;color:#948f80;}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{width:222px;flex-shrink:0;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;padding:18px 14px;overflow:hidden;transition:width .16s ease, padding .16s ease;position:relative;}
+  .sidebar.collapsed{width:0;padding-left:0;padding-right:0;}
+  .sidebar-collapse-btn{position:absolute;top:16px;right:-11px;width:22px;height:22px;border-radius:50%;background:var(--ink);border:1px solid #4a453b;color:#d8d3c4;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:5;}
+  .sidebar-collapse-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .show-sidebar-btn{position:absolute;top:16px;left:14px;z-index:20;width:30px;height:30px;border-radius:8px;background:var(--ink);border:1px solid #4a453b;color:#d8d3c4;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:13px;}
+  .show-sidebar-btn.visible{display:flex;}
+  .show-sidebar-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .brand{font-family:'Fraunces',serif;font-weight:600;font-size:22px;letter-spacing:.2px;margin-bottom:2px;color:#fff;cursor:pointer;}
+  .brand small{display:block;font-family:'Inter';font-style:normal;font-weight:500;font-size:11px;color:#948f80;letter-spacing:.3px;margin-top:2px;}
+  .board-list{margin-top:26px;display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto;}
+  .board-list-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7d7869;margin:0 0 8px 4px;font-weight:600;}
+  .board-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;color:#d8d3c4;border-left:3px solid transparent;transition:background .12s ease;position:relative;}
+  .board-item:hover{background:#2b2823;}
+  .board-item.active{background:#332f28;border-left-color:var(--accent);color:#fff;font-weight:600;}
+  .board-icon-btn{width:22px;height:22px;border:none;background:none;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;}
+  .board-icon-btn:hover{background:#3a352c;}
+  .board-icon-btn svg{width:14px;height:14px;display:block;}
+  .board-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+  .board-item .count{font-size:11px;color:#847f70;font-weight:400;}
+  .icon-color-popover{position:absolute;top:34px;left:6px;z-index:80;background:#2b2823;border:1px solid #4a453b;border-radius:9px;padding:7px;display:flex;gap:6px;box-shadow:0 10px 24px rgba(0,0,0,.45);}
+  .icon-color-popover .swatch{width:15px;height:15px;border-radius:50%;cursor:pointer;border:1px solid rgba(255,255,255,.25);}
+  .icon-color-popover .swatch:hover{transform:scale(1.25);}
+  .add-board{margin-top:10px;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:#948f80;border:1px dashed #4a453b;background:none;font-family:inherit;width:100%;text-align:left;}
+  .add-board:hover{color:#fff;border-color:#6b6558;}
+  .sidebar-foot{font-size:11px;color:#6b6558;line-height:1.5;padding-top:14px;margin-top:10px;border-top:1px solid #332f28;}
+
+  /* ---------- Main / layout ---------- */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;}
+  .board-view{flex:1;display:flex;flex-direction:column;min-height:0;}
+  .board-view.hidden{display:none;}
+
+  /* ---------- Home overview ---------- */
+  .home-view{flex:1;overflow-y:auto;padding:44px 48px;background:var(--paper);display:none;}
+  .home-view.visible{display:block;}
+  .home-brand-mark{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:15px;color:var(--accent);letter-spacing:.02em;padding-bottom:16px;margin-bottom:24px;border-bottom:1px solid #e2dac6;max-width:520px;}
+  .home-header h1{font-family:'Fraunces',serif;font-weight:600;font-size:30px;margin:0 0 6px;}
+  .home-header p{color:var(--ink-soft);font-size:14px;margin:0 0 30px;max-width:520px;}
+  .home-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));gap:20px;max-width:1000px;}
+
+  /* ---------- Inside Rooms (admin-only home panel) ---------- */
+  .inside-rooms{max-width:640px;background:#fff;border:1px solid #e2dac6;border-radius:14px;padding:26px 28px;margin-bottom:34px;}
+  .inside-rooms-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:6px;}
+  .inside-rooms-head h2{font-family:'Fraunces',serif;font-weight:600;font-size:19px;margin:0;}
+  .inside-rooms-head .badge{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:3px 9px;border-radius:20px;}
+  .inside-rooms > p{color:var(--ink-soft);font-size:13px;margin:0 0 18px;}
+  .inside-rooms-cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;}
+  @media (max-width: 640px){ .inside-rooms-cols{grid-template-columns:1fr;} }
+  .house-tile{border-radius:14px;overflow:hidden;cursor:pointer;background:#fff;border:1px solid #e2dac6;transition:transform .12s ease, box-shadow .12s ease;}
+  .house-tile:hover{transform:translateY(-3px);box-shadow:0 14px 26px -10px rgba(33,31,27,.28);}
+  .house-tile .facade{height:92px;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(currentColor 1.4px, transparent 1.4px);background-size:16px 16px;position:relative;}
+  .house-tile .facade svg{width:34px;height:34px;position:relative;z-index:1;}
+  .house-tile .tile-body{padding:12px 14px 14px;}
+  .house-tile .tile-name{font-weight:700;font-size:14px;margin-bottom:3px;}
+  .house-tile .tile-count{font-size:12px;color:var(--ink-soft);}
+  .house-tile.new-house{background:none;border:1.5px dashed #cabf9f;display:flex;align-items:center;justify-content:center;min-height:150px;color:#9a9483;font-weight:600;font-size:13.5px;}
+  .house-tile.new-house:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* ---------- House view (rooms gallery) ---------- */
+  .house-view{flex:1;overflow-y:auto;padding:36px 48px;background:var(--paper);display:none;}
+  .house-view.visible{display:block;}
+  .house-crumb{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft);margin-bottom:16px;}
+  .house-crumb a{color:var(--ink-soft);cursor:pointer;text-decoration:none;}
+  .house-crumb a:hover{color:var(--accent);}
+  .house-view-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:8px;flex-wrap:wrap;}
+  .house-view-title{font-family:'Fraunces',serif;font-weight:600;font-size:28px;outline:none;border-radius:6px;padding:2px 4px;}
+  .house-view-title:focus{background:#fff;box-shadow:0 0 0 2px var(--accent-soft);}
+  .house-view-sub{color:var(--ink-soft);font-size:13.5px;margin:6px 0 26px;}
+  .house-view-actions{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{background:var(--paper);border-bottom:1px solid #e2dac6;padding:12px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:relative;}
+  .board-title{font-family:'Fraunces',serif;font-weight:600;font-size:20px;outline:none;padding:2px 6px;border-radius:6px;min-width:60px;}
+  .board-title:focus{background:#fff;box-shadow:0 0 0 2px var(--accent-soft);}
+  .room-crumb{font-size:12px;color:var(--ink-soft);cursor:pointer;white-space:nowrap;}
+  .room-crumb:hover{color:var(--accent);}
+  .toolbar .spacer{flex:1;}
+  .tool-group{display:flex;gap:6px;align-items:center;}
+
+  .tbtn{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e2dac6;color:var(--ink);padding:7px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s ease;white-space:nowrap;}
+  .tbtn:hover{border-color:var(--accent);color:var(--accent);}
+  .tbtn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .tbtn svg{width:14px;height:14px;flex-shrink:0;}
+
+  .tbtn-note{background:#fdf3d0;border-color:#e9cf7d;color:#6b5511;}
+  .tbtn-note:hover{border-color:#c9a83e;color:#4f3f0c;}
+  .tbtn-image{background:#dcebf1;border-color:#9fc2d6;color:#204a5c;}
+  .tbtn-image:hover{border-color:#5b93ac;color:#183945;}
+  .tbtn-check{background:#e2ecd9;border-color:#a9c295;color:#3c5c2c;}
+  .tbtn-check:hover{border-color:#7fa565;color:#2b4320;}
+  .tbtn-headline{background:#f0e6f5;border-color:#c9a8dd;color:#5c2e70;}
+  .tbtn-headline:hover{border-color:#a870c2;color:#431f52;}
+  .tbtn-arrow{background:#e4e4fb;border-color:#b3b3f2;color:#33339a;}
+  .tbtn-arrow:hover{border-color:#8d8de9;color:#26266f;}
+  .tbtn-arrow.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .tbtn-room{background:#fbe7d4;border-color:#e6b989;color:#7a4a15;}
+  .tbtn-room:hover{border-color:#cf9a5a;color:#5c380f;}
+
+  .home-btn{border:1px solid #e2dac6;background:#fff;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  .home-btn:hover{border-color:var(--accent);}
+  .home-btn svg{width:15px;height:15px;fill:var(--ink);}
+  .home-btn:hover svg{fill:var(--accent);}
+
+  .atmosphere-popover{position:absolute;top:52px;z-index:80;background:#fff;border:1px solid #e2dac6;border-radius:10px;padding:10px;box-shadow:0 12px 26px rgba(33,31,27,.22);display:flex;flex-direction:column;gap:6px;min-width:170px;}
+  .atmosphere-opt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--ink);}
+  .atmosphere-opt:hover{background:var(--accent-soft);}
+  .atmosphere-opt .swatch-pair{display:flex;width:20px;height:20px;border-radius:6px;overflow:hidden;flex-shrink:0;border:1px solid rgba(0,0,0,.1);}
+  .atmosphere-opt .swatch-pair span{flex:1;}
+
+  .search-box{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e2dac6;border-radius:8px;padding:6px 10px;min-width:170px;}
+  .search-box input{border:none;outline:none;font-family:inherit;font-size:13px;width:100%;background:none;color:var(--ink);}
+  .search-box svg{width:14px;height:14px;color:#8a8371;flex-shrink:0;}
+
+  .zoom-group{display:flex;align-items:center;gap:2px;background:#fff;border:1px solid #e2dac6;border-radius:8px;overflow:hidden;}
+  .zoom-group button{border:none;background:none;width:28px;height:30px;cursor:pointer;font-size:15px;color:var(--ink);font-family:inherit;}
+  .zoom-group button:hover{background:var(--accent-soft);color:var(--accent);}
+  .zoom-label{font-size:12px;color:var(--ink-soft);width:42px;text-align:center;font-variant-numeric:tabular-nums;}
+
+  .history-group{display:flex;align-items:center;gap:2px;background:#fff;border:1px solid #e2dac6;border-radius:8px;overflow:hidden;}
+  .history-group button{border:none;background:none;width:30px;height:30px;cursor:pointer;font-size:15px;color:var(--ink);font-family:inherit;}
+  .history-group button:hover:not(:disabled){background:var(--accent-soft);color:var(--accent);}
+  .history-group button:disabled{color:#c9c2b0;cursor:default;}
+
+  .invite-chips{display:flex;align-items:center;}
+  .invite-chip{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#fff;border:2px solid var(--paper);margin-left:-7px;flex-shrink:0;}
+  .invite-chip:first-child{margin-left:0;}
+
+  .invite-popover{position:absolute;top:52px;z-index:80;background:#fff;border:1px solid #e2dac6;border-radius:10px;padding:14px;box-shadow:0 12px 26px rgba(33,31,27,.22);width:270px;}
+  .invite-popover h4{margin:0 0 4px;font-size:13.5px;font-family:'Fraunces',serif;font-weight:600;}
+  .invite-popover p{margin:0 0 10px;font-size:12px;color:var(--ink-soft);}
+  .invite-row{display:flex;gap:6px;margin-bottom:10px;}
+  .invite-row input{flex:1;font-family:inherit;font-size:13px;padding:7px 9px;border-radius:6px;border:1px solid #dcd2b8;outline:none;}
+  .invite-row input:focus{border-color:var(--accent);}
+  .invite-row button{background:var(--accent);border:none;color:#fff;border-radius:6px;padding:0 12px;font-size:13px;font-weight:600;cursor:pointer;}
+  .invite-row button:hover{background:#4a4ed6;}
+  .invite-member-list{display:flex;flex-direction:column;gap:6px;max-height:140px;overflow-y:auto;margin-bottom:4px;}
+  .invite-member{display:flex;align-items:center;gap:8px;font-size:12.5px;}
+  .invite-member .chip-dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;color:#fff;flex-shrink:0;}
+  .invite-member span.name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .invite-member button{border:none;background:none;color:#b3ac99;cursor:pointer;font-size:13px;}
+  .invite-member button:hover{color:var(--danger);}
+  .invite-link-box{margin-top:10px;padding-top:10px;border-top:1px solid #ece4d3;}
+  .invite-link-box label{font-size:11px;color:var(--ink-soft);display:block;margin-bottom:4px;}
+  .invite-link-box input{width:100%;font-size:11.5px;padding:6px 8px;border-radius:6px;border:1px solid #dcd2b8;background:#faf7f0;color:var(--ink-soft);font-family:inherit;}
+
+  /* ---------- Canvas ---------- */
+  .canvas-wrap{flex:1;position:relative;overflow:hidden;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1.4px, transparent 1.4px);cursor:grab;}
+  .canvas-wrap.panning{cursor:grabbing;}
+  .canvas-wrap.arrow-mode{cursor:crosshair;}
+  .canvas{position:absolute;top:0;left:0;width:9000px;height:6000px;transform-origin:0 0;}
+  .conn-layer{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
+  .thread{fill:none;stroke:var(--accent);stroke-width:1.8;pointer-events:stroke;cursor:pointer;}
+  .thread:hover{stroke:var(--danger);}
+  .thread-hit{fill:none;stroke:transparent;stroke-width:14px;pointer-events:stroke;cursor:pointer;}
+  .draw-temp{pointer-events:none;opacity:.8;}
+  .bend-handle{fill:#fff;stroke:var(--accent);stroke-width:2px;opacity:0;pointer-events:none;cursor:grab;transition:opacity .12s ease;}
+  .line-group:hover .bend-handle{opacity:1;pointer-events:all;}
+  .bend-handle:active{cursor:grabbing;}
+
+  .empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#a39c86;pointer-events:none;font-family:'Fraunces',serif;font-style:italic;font-size:19px;}
+
+  /* ---------- Cards ---------- */
+  .card{position:absolute;border-radius:var(--radius);box-shadow:var(--shadow);padding:0;user-select:none;background:var(--card-cream);cursor:grab;}
+  .card.dragging{cursor:grabbing;box-shadow:0 16px 30px -8px rgba(0,0,0,.35);z-index:50;transition:none;}
+  .card::before{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #fff, var(--accent) 60%, #33339a 100%);box-shadow:0 2px 3px rgba(0,0,0,.35);}
+  .card-head{height:20px;cursor:grab;position:relative;display:flex;align-items:center;justify-content:flex-end;padding:4px 6px 0 6px;gap:4px;opacity:0;transition:opacity .12s ease;}
+  .card:hover .card-head{opacity:1;}
+  .card.dragging .card-head{cursor:grabbing;}
+  .card-body{padding:14px 14px 12px;}
+  .card-tag{font-family:'Caveat',cursive;font-weight:700;font-size:14px;color:var(--ink-soft);display:inline-block;margin-bottom:4px;opacity:.75;}
+
+  .swatches{display:flex;gap:5px;margin-right:auto;}
+  .swatch{width:12px;height:12px;border-radius:50%;cursor:pointer;border:1px solid rgba(0,0,0,.15);}
+  .swatch:hover{transform:scale(1.25);}
+
+  .icon-btn{width:18px;height:18px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);border-radius:4px;}
+  .icon-btn:hover{background:rgba(0,0,0,.08);color:var(--danger);}
+  .icon-btn svg{width:12px;height:12px;}
+
+  .note-text{outline:none;font-size:14px;line-height:1.5;color:var(--ink);min-height:40px;white-space:pre-wrap;word-break:break-word;cursor:text;}
+  .note-text:empty:before{content:attr(data-ph);color:rgba(33,31,27,.4);}
+
+  .card.type-headline .card-body{padding:16px 16px 14px;}
+  .headline-text{outline:none;font-family:'Fraunces',serif;font-weight:700;font-size:22px;line-height:1.25;color:var(--ink);min-height:30px;white-space:pre-wrap;word-break:break-word;cursor:text;}
+  .headline-text:empty:before{content:attr(data-ph);color:rgba(33,31,27,.35);}
+
+  .card.type-image .card-body{padding:8px;}
+  .card.type-image img{width:100%;display:block;border-radius:6px;max-height:220px;object-fit:cover;}
+  .img-input-wrap{display:flex;flex-direction:column;gap:6px;}
+  .img-input{width:100%;font-family:inherit;font-size:13px;padding:8px 9px;border-radius:6px;border:1px solid #dcd2b8;outline:none;background:#fff;}
+  .img-input:focus{border-color:var(--accent);}
+  .img-upload-btn{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-soft);border:1px dashed #cabf9f;border-radius:6px;padding:9px;cursor:pointer;background:none;font-family:inherit;}
+  .img-upload-btn:hover{color:var(--accent);border-color:var(--accent);}
+  .img-or{text-align:center;font-size:11px;color:#a39c86;}
+  .img-broken{display:flex;align-items:center;justify-content:center;height:120px;background:#e6ddc9;border-radius:6px;color:#a39c86;font-size:12px;text-align:center;padding:10px;}
+
+  .check-title{font-weight:700;font-size:14px;outline:none;margin-bottom:8px;cursor:text;}
+  .check-item{display:flex;align-items:flex-start;gap:7px;font-size:13.5px;margin-bottom:6px;line-height:1.4;}
+  .check-item input[type=checkbox]{margin-top:3px;accent-color:var(--accent);flex-shrink:0;}
+  .check-item .ci-text{outline:none;flex:1;word-break:break-word;cursor:text;}
+  .check-item.done .ci-text{text-decoration:line-through;color:#9a9483;}
+  .check-item .icon-btn{opacity:0;flex-shrink:0;}
+  .check-item:hover .icon-btn{opacity:1;}
+  .check-add{font-size:13px;color:#9a9483;cursor:text;outline:none;padding-top:2px;}
+  .check-add:empty:before{content:'+ add item';}
+
+  .card.dimmed{opacity:.22;}
+  ::selection{background:var(--accent-soft);}
+</style>
+</head>
+<body>
+<div class="gate" id="gateView">
+  <div class="gate-card" id="gateCard"></div>
+  <button class="gate-admin-corner" id="gateAdminCorner">Admin</button>
+</div>
+<div class="app" id="appRoot" style="display:none;">
+
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-collapse-btn" id="collapseSidebarBtn" title="Hide sidebar">⟨</button>
+    <div class="brand" id="brandHome" title="Back to all houses">The Third Place<small>a place for loose ideas</small></div>
+    <div class="board-list-label">Houses</div>
+    <div class="board-list" id="boardList"></div>
+    <button class="add-board" id="addBoardBtn">+ New house</button>
+    <div class="sidebar-foot">Everything here lives for this session only — nothing is saved once you close the tab.</div>
+  </aside>
+
+  <div class="main">
+    <button class="show-sidebar-btn" id="showSidebarBtn" title="Show sidebar">⟩</button>
+
+    <div class="home-view" id="homeView">
+      <div class="home-brand-mark">The Third Place</div>
+      <div class="home-header">
+        <h1>Your houses</h1>
+        <p>Pick a house to step inside, or start a new one. Each house holds its own rooms — and each room is its own space to think in.</p>
+      </div>
+      <div id="insideRoomsSlot"></div>
+      <div class="home-grid" id="homeGrid"></div>
+    </div>
+
+    <div class="house-view" id="houseView">
+      <div class="house-crumb"><a id="crumbHome">All houses</a></div>
+      <div class="house-view-header">
+        <div>
+          <h1 class="house-view-title" id="houseTitle" contenteditable="true" spellcheck="false"></h1>
+          <div class="house-view-sub">Rooms inside this house. Step into one to start adding ideas.</div>
+        </div>
+        <div class="house-view-actions">
+          <div class="invite-chips" id="houseInviteChips"></div>
+          <button class="tbtn" id="houseInviteBtn" title="Invite someone to this house">+ Invite</button>
+        </div>
+      </div>
+      <div class="home-grid" id="roomGrid"></div>
+    </div>
+
+    <div class="board-view" id="boardView">
+      <div class="toolbar">
+        <button class="home-btn" id="homeBtn" title="Back to all houses">
+          <svg viewBox="0 0 24 24"><path d="M12 3.2 3 11h2.4v9h5.2v-6h2.8v6h5.2v-9H21z"/></svg>
+        </button>
+        <span class="room-crumb" id="roomCrumb"></span>
+        <h1 class="board-title" id="boardTitle" contenteditable="true" spellcheck="false"></h1>
+
+        <div class="tool-group">
+          <button class="tbtn tbtn-note" id="addNote" title="Add a note">✎ Note</button>
+          <button class="tbtn tbtn-image" id="addImage" title="Add an image">▧ Image</button>
+          <button class="tbtn tbtn-check" id="addCheck" title="Add a checklist">☑ List</button>
+          <button class="tbtn tbtn-headline" id="addHeadline" title="Add a headline">H Headline</button>
+          <button class="tbtn tbtn-arrow" id="arrowBtn" title="Draw an arrow — drag from a point or a card to another">↗ Arrow</button>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="searchInput" placeholder="Search this room…">
+        </div>
+
+        <div class="history-group">
+          <button id="undoBtn" title="Undo (Ctrl/Cmd+Z)">↺</button>
+          <button id="redoBtn" title="Redo (Ctrl/Cmd+Shift+Z)">↻</button>
+        </div>
+
+        <button class="tbtn" id="atmosphereBtn" title="Customize this room's atmosphere">◐ Atmosphere</button>
+
+        <div class="zoom-group">
+          <button id="zoomOut">–</button>
+          <span class="zoom-label" id="zoomLabel">100%</span>
+          <button id="zoomIn">+</button>
+        </div>
+      </div>
+
+      <div class="canvas-wrap" id="canvasWrap">
+        <div class="canvas" id="canvas">
+          <svg class="conn-layer" id="connLayer" width="9000" height="6000"></svg>
+        </div>
+        <div class="empty-hint" id="emptyHint">This room is empty — add a note to start thinking out loud.</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBUGKXUhqham5qbJksS08pHkIu2oqD5rP0",
+  authDomain: "the-third-place-db890.firebaseapp.com",
+  projectId: "the-third-place-db890",
+  storageBucket: "the-third-place-db890.firebasestorage.app",
+  messagingSenderId: "903680225772",
+  appId: "1:903680225772:web:17da9fa95fde9add50d0c9",
+  measurementId: "G-NPDSRCWZLX"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+(function(){
+  "use strict";
+
+  const ADMIN_EMAIL = 'mohdalhinai2@gmail.com';
+  const ADMIN_PASSWORD = '91356713Mm';
+
+  const COLORS = [
+    {name:'cream',  hex:'#fbf7ee'},
+    {name:'yellow', hex:'#f5d673'},
+    {name:'sage',   hex:'#b9cba9'},
+    {name:'blush',  hex:'#eab0a1'},
+    {name:'sky',    hex:'#a9c8d9'},
+    {name:'lilac',  hex:'#c9b7e4'},
+  ];
+  const ICON_COLORS = ['#f5d673','#eab0a1','#a9c8d9','#c9b7e4','#b9cba9','#5b5fef','#e2725b','#7fb069'];
+  const DEFAULT_W = {note:220, image:260, checklist:240, headline:260};
+  const ATMOSPHERES = [
+    {name:'Parchment', bg:'#ece4d3', dot:'#d9cbae'},
+    {name:'Meadow',    bg:'#e3ead8', dot:'#bfd1a4'},
+    {name:'Blush',     bg:'#f3e1de', dot:'#e2b7ae'},
+    {name:'Ocean',     bg:'#dee9ee', dot:'#aecdda'},
+    {name:'Lilac Dusk',bg:'#e7e1ef', dot:'#c7b6dd'},
+    {name:'Midnight',  bg:'#25262c', dot:'#3c3e47'},
+  ];
+  const IDEA_TYPE_OPTIONS = ['Big & Chaotic','Quiet & Specific','Half-formed but Loud','Borrowed from a Dream'];
+  const WEIRD_Q1 = {question:'If you were a kitchen appliance, which one?', options:['Toaster','Blender','Fridge that hums at 2am','Mystery crockpot']};
+  const WEIRD_Q2 = {question:'Pick your final form:', options:['A Post-it note','A tangled charger cable','A half-drunk coffee','A Wikipedia rabbit hole']};
+
+  function genId(prefix){
+    return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+  const nextId = () => genId('c');
+  let boardColorCounter = 0;
+
+  function homeIconSVG(color){
+    return `<svg viewBox="0 0 24 24"><path d="M12 3.2 3 11h2.4v9h5.2v-6h2.8v6h5.2v-9H21z" fill="${color}"/></svg>`;
+  }
+
+  function makeRoom(name){
+    const atmosphere = ATMOSPHERES[boardColorCounter % ATMOSPHERES.length];
+    boardColorCounter++;
+    return {
+      id: genId('r'), name, atmosphere,
+      cards: [], arrows: [],
+      history: [], redo: [],
+      pan: {x: 140, y: 100}, zoom: 1
+    };
+  }
+
+  function makeHouse(name){
+    const color = ICON_COLORS[boardColorCounter % ICON_COLORS.length];
+    boardColorCounter++;
+    return {
+      id: genId('h'), name, iconColor: color,
+      invitedMembers: [], rooms: []
+    };
+  }
+
+  const state = {
+    houses: [ makeHouse('Short Film Ideas'), makeHouse('Brand Refresh'), makeHouse('Random Sparks') ],
+    currentHouseId: null,
+    currentRoomId: null,
+    view: 'home', // 'home' | 'house' | 'room'
+    arrowMode: false,
+    communityName: 'The Night Owls Collective',
+    gateStage: 'signup', // 'signup' | 'pending' | 'adminLogin' | 'admin'
+    pendingRequests: [],
+    members: [],
+    myRequestId: null,
+    accessGranted: false,
+    isAdminVerified: false,
+  };
+
+  // seed rooms inside each house
+  state.houses[0].rooms.push(makeRoom('Pre-Production'), makeRoom('Locations'));
+  state.houses[1].rooms.push(makeRoom('Moodboard'));
+  state.houses[2].rooms.push(makeRoom('General'));
+  state.currentHouseId = state.houses[0].id;
+  state.currentRoomId = state.houses[0].rooms[0].id;
+
+  let openIconPopoverId = null;
+  let atmospherePopoverOpen = false;
+  let draggingHandle = null;
+
+  // seed a couple of fake access requests + one existing member, for demo
+  state.pendingRequests.push(
+    {id:genId('req'), name:'Maya Chen', email:'maya@sundialstudio.com', note:'Friend of Alex — working on a zine together.', ideaType:'Half-formed but Loud', weird1:'Blender', weird2:'A Wikipedia rabbit hole'},
+    {id:genId('req'), name:'Reuben Ortiz', email:'reuben.ortiz@mail.com', note:'Found the group through the community Discord.', ideaType:'Quiet & Specific', weird1:'Toaster', weird2:'A tangled charger cable'}
+  );
+  state.members.push({id:genId('mem'), name:'Priya Nandakumar', email:'priya@driftlab.co'});
+
+  // seed a little starter content in the first room
+  (function seed(){
+    const r = state.houses[0].rooms[0];
+    r.cards.push(
+      {id:nextId(), type:'headline', x:120, y:60, w:280, color:'lilac', rotation:-0.6, content:'Rooftop Short Film'},
+      {id:nextId(), type:'note', x:120, y:170, w:220, color:'yellow', rotation:-1.5, content:'What if the short opens mid-conversation — no establishing shot, straight into the argument?'},
+      {id:nextId(), type:'note', x:400, y:140, w:220, color:'sky', rotation:1, content:'Location scout: the laundromat on 9th has that green light at night.'},
+      {id:nextId(), type:'checklist', x:400, y:360, w:240, color:'cream', rotation:-0.5, title:'Before the shoot', items:[
+        {id:nextId(), text:'Lock the shot list', done:true},
+        {id:nextId(), text:'Confirm actors for Sat', done:false},
+        {id:nextId(), text:'Borrow the boom mic', done:false},
+      ]}
+    );
+    r.arrows.push({id:nextId(), from:{cardId:r.cards[0].id}, to:{cardId:r.cards[1].id}});
+    state.houses[0].invitedMembers.push({id:nextId(), name:'Alex Rivera'});
+  })();
+
+  // ---------- Shared data (Firestore) ----------
+  // Everything below keeps state.houses (the actual content) and the sign-up/
+  // membership lists in sync across every visitor via two Firestore documents.
+  const BOARD_DOC = doc(db, 'app', 'boardData');
+  const GATE_DOC = doc(db, 'app', 'gateData');
+  let applyingRemoteBoard = false;
+  let applyingRemoteGate = false;
+  let boardSaveTimer = null;
+  let gateSaveTimer = null;
+
+  function scheduleSaveBoard(){
+    if(applyingRemoteBoard) return;
+    clearTimeout(boardSaveTimer);
+    boardSaveTimer = setTimeout(() => {
+      setDoc(BOARD_DOC, {houses: state.houses}).catch(err => console.error('Save failed', err));
+    }, 900);
+  }
+  function scheduleSaveGate(){
+    if(applyingRemoteGate) return;
+    clearTimeout(gateSaveTimer);
+    gateSaveTimer = setTimeout(() => {
+      setDoc(GATE_DOC, {
+        communityName: state.communityName,
+        pendingRequests: state.pendingRequests,
+        members: state.members
+      }).catch(err => console.error('Save failed', err));
+    }, 600);
+  }
+
+  function reflectRemoteBoardChange(){
+    // Keep current navigation pointing at something that still exists.
+    if(!state.houses.find(h => h.id === state.currentHouseId)){
+      state.currentHouseId = state.houses[0] ? state.houses[0].id : null;
+    }
+    const h = currentHouse();
+    if(h && !h.rooms.find(r => r.id === state.currentRoomId)){
+      state.currentRoomId = h.rooms[0] ? h.rooms[0].id : null;
+    }
+    if(!state.accessGranted) return;
+    renderSidebar();
+    if(state.view === 'home') renderHome();
+    else if(state.view === 'house' && currentHouse()) renderHouseView();
+    else if(state.view === 'room' && currentRoom()) renderRoom();
+    else goHome();
+  }
+
+  function reflectRemoteGateChange(){
+    if(state.accessGranted){
+      if(state.view === 'home') renderInsideRooms();
+      return;
+    }
+    if(state.gateStage === 'pending') renderGate();
+  }
+
+  async function initSharedData(){
+    try{
+      const boardSnap = await getDoc(BOARD_DOC);
+      if(boardSnap.exists() && boardSnap.data().houses && boardSnap.data().houses.length){
+        state.houses = boardSnap.data().houses;
+        state.currentHouseId = state.houses[0].id;
+        state.currentRoomId = state.houses[0].rooms[0] ? state.houses[0].rooms[0].id : null;
+      } else {
+        await setDoc(BOARD_DOC, {houses: state.houses});
+      }
+    } catch(err){ console.error('Could not reach Firestore for board data', err); }
+
+    try{
+      const gateSnap = await getDoc(GATE_DOC);
+      if(gateSnap.exists()){
+        const d = gateSnap.data();
+        state.communityName = d.communityName || state.communityName;
+        state.pendingRequests = d.pendingRequests || [];
+        state.members = d.members || [];
+      } else {
+        await setDoc(GATE_DOC, {
+          communityName: state.communityName,
+          pendingRequests: state.pendingRequests,
+          members: state.members
+        });
+      }
+    } catch(err){ console.error('Could not reach Firestore for gate data', err); }
+
+    // Returning visitor? Skip the request screen if this browser already
+    // signed up before (works once this file is hosted for real, since
+    // localStorage isn't available inside the Claude.ai preview sandbox).
+    let savedEmail = null;
+    try{ savedEmail = localStorage.getItem('ttp_myEmail'); } catch(err){ /* storage blocked */ }
+    if(savedEmail){
+      const mem = state.members.find(m => m.email.toLowerCase() === savedEmail.toLowerCase());
+      const pending = state.pendingRequests.find(r => r.email.toLowerCase() === savedEmail.toLowerCase());
+      if(mem){
+        state.myRequestId = mem.id;
+        renderSidebar();
+        enterApp();
+      } else if(pending){
+        state.myRequestId = pending.id;
+        state.gateStage = 'pending';
+        renderGate();
+      } else {
+        try{ localStorage.removeItem('ttp_myEmail'); } catch(err){}
+        renderGate();
+      }
+    } else {
+      renderGate();
+    }
+
+    onSnapshot(BOARD_DOC, snap => {
+      if(!snap.exists()) return;
+      applyingRemoteBoard = true;
+      const houses = snap.data().houses;
+      if(houses && houses.length) state.houses = houses;
+      reflectRemoteBoardChange();
+      applyingRemoteBoard = false;
+    });
+    onSnapshot(GATE_DOC, snap => {
+      if(!snap.exists()) return;
+      applyingRemoteGate = true;
+      const d = snap.data();
+      state.communityName = d.communityName || state.communityName;
+      state.pendingRequests = d.pendingRequests || [];
+      state.members = d.members || [];
+      reflectRemoteGateChange();
+      applyingRemoteGate = false;
+    });
+  }
+
+  // ---------- DOM refs ----------
+  const canvasWrap = document.getElementById('canvasWrap');
+  const canvas = document.getElementById('canvas');
+  const connLayer = document.getElementById('connLayer');
+  const boardListEl = document.getElementById('boardList');
+  const boardTitleEl = document.getElementById('boardTitle');
+  const roomCrumb = document.getElementById('roomCrumb');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const emptyHint = document.getElementById('emptyHint');
+  const arrowBtn = document.getElementById('arrowBtn');
+  const searchInput = document.getElementById('searchInput');
+  const atmosphereBtn = document.getElementById('atmosphereBtn');
+  const homeView = document.getElementById('homeView');
+  const homeGrid = document.getElementById('homeGrid');
+  const houseView = document.getElementById('houseView');
+  const roomGrid = document.getElementById('roomGrid');
+  const houseTitleEl = document.getElementById('houseTitle');
+  const houseInviteBtn = document.getElementById('houseInviteBtn');
+  const houseInviteChipsEl = document.getElementById('houseInviteChips');
+  const crumbHome = document.getElementById('crumbHome');
+  const boardView = document.getElementById('boardView');
+  const homeBtn = document.getElementById('homeBtn');
+  const brandHome = document.getElementById('brandHome');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const sidebar = document.getElementById('sidebar');
+  const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
+  const showSidebarBtn = document.getElementById('showSidebarBtn');
+
+  function currentHouse(){ return state.houses.find(h => h.id === state.currentHouseId); }
+  function currentRoom(){ const h = currentHouse(); return h ? h.rooms.find(r => r.id === state.currentRoomId) : null; }
+  function findCard(id){ const r = currentRoom(); return r ? r.cards.find(c => c.id === id) : null; }
+
+  function applyAtmosphere(room){
+    canvasWrap.style.setProperty('--canvas', room.atmosphere.bg);
+    canvasWrap.style.setProperty('--dot', room.atmosphere.dot);
+  }
+
+  function escapeHtml(s){
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+  function initials(name){
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
+  }
+  function colorFor(name){
+    let h = 0;
+    for(let i=0;i<name.length;i++) h = (h * 31 + name.charCodeAt(i)) % ICON_COLORS.length;
+    return ICON_COLORS[Math.abs(h)];
+  }
+
+  function setSidebarCollapsed(collapsed){
+    sidebar.classList.toggle('collapsed', collapsed);
+    showSidebarBtn.classList.toggle('visible', collapsed);
+  }
+  collapseSidebarBtn.addEventListener('click', () => setSidebarCollapsed(true));
+  showSidebarBtn.addEventListener('click', () => setSidebarCollapsed(false));
+
+  // ---------- Navigation: home / house / room ----------
+  function setArrowMode(on){
+    state.arrowMode = on;
+    arrowBtn.classList.toggle('active', on);
+    canvasWrap.classList.toggle('arrow-mode', on);
+  }
+
+  function hideAllViews(){
+    homeView.classList.remove('visible');
+    houseView.classList.remove('visible');
+    boardView.classList.add('hidden');
+  }
+
+  function goHome(){
+    state.view = 'home';
+    setArrowMode(false);
+    hideAllViews();
+    homeView.classList.add('visible');
+    renderHome();
+    renderSidebar();
+  }
+
+  function goToHouse(houseId){
+    state.view = 'house';
+    state.currentHouseId = houseId;
+    setArrowMode(false);
+    hideAllViews();
+    houseView.classList.add('visible');
+    renderSidebar();
+    renderHouseView();
+  }
+
+  function goToRoom(houseId, roomId){
+    state.view = 'room';
+    state.currentHouseId = houseId;
+    state.currentRoomId = roomId;
+    setArrowMode(false);
+    hideAllViews();
+    boardView.classList.remove('hidden');
+    renderSidebar();
+    renderRoom();
+  }
+
+  homeBtn.addEventListener('click', goHome);
+  brandHome.addEventListener('click', goHome);
+  crumbHome.addEventListener('click', goHome);
+  roomCrumb.addEventListener('click', () => goToHouse(state.currentHouseId));
+
+  function houseFacade(house){
+    return house.rooms[0] ? house.rooms[0].atmosphere : ATMOSPHERES[0];
+  }
+
+  function renderHome(){
+    renderInsideRooms();
+    homeGrid.innerHTML = '';
+    state.houses.forEach(h => {
+      const facade = houseFacade(h);
+      const tile = document.createElement('div');
+      tile.className = 'house-tile';
+      const facadeEl = document.createElement('div');
+      facadeEl.className = 'facade';
+      facadeEl.style.backgroundColor = facade.bg;
+      facadeEl.style.color = facade.dot;
+      facadeEl.innerHTML = homeIconSVG(h.iconColor);
+      const body = document.createElement('div');
+      body.className = 'tile-body';
+      const roomCount = h.rooms.length;
+      body.innerHTML = `<div class="tile-name">${escapeHtml(h.name)}</div><div class="tile-count">${roomCount} room${roomCount===1?'':'s'}</div>`;
+      tile.appendChild(facadeEl);
+      tile.appendChild(body);
+      tile.addEventListener('click', () => goToHouse(h.id));
+      homeGrid.appendChild(tile);
+    });
+    const addTile = document.createElement('div');
+    addTile.className = 'house-tile new-house';
+    addTile.textContent = '+ New house';
+    addTile.addEventListener('click', () => {
+      const h = makeHouse('Untitled house');
+      h.rooms.push(makeRoom('General'));
+      state.houses.push(h);
+      goToHouse(h.id);
+      houseTitleEl.focus();
+      document.execCommand('selectAll', false, null);
+      scheduleSaveBoard();
+    });
+    homeGrid.appendChild(addTile);
+  }
+
+  // ---------- House view (rooms gallery) ----------
+  function renderHouseView(){
+    const h = currentHouse();
+    houseTitleEl.textContent = h.name;
+    renderRoomGrid();
+    renderHouseInviteChips();
+  }
+
+  function renderRoomGrid(){
+    const h = currentHouse();
+    roomGrid.innerHTML = '';
+    h.rooms.forEach(r => {
+      const tile = document.createElement('div');
+      tile.className = 'house-tile';
+      const facadeEl = document.createElement('div');
+      facadeEl.className = 'facade';
+      facadeEl.style.backgroundColor = r.atmosphere.bg;
+      facadeEl.style.color = r.atmosphere.dot;
+      facadeEl.innerHTML = `<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" fill="none" stroke="${r.atmosphere.dot === r.atmosphere.dot ? '#5b5fef' : '#5b5fef'}" stroke-width="1.6"/><path d="M4 10h16" stroke="#5b5fef" stroke-width="1.6"/></svg>`;
+      const body = document.createElement('div');
+      body.className = 'tile-body';
+      body.innerHTML = `<div class="tile-name">${escapeHtml(r.name)}</div><div class="tile-count">${r.cards.length} item${r.cards.length===1?'':'s'} · ${r.atmosphere.name}</div>`;
+      tile.appendChild(facadeEl);
+      tile.appendChild(body);
+      tile.addEventListener('click', () => goToRoom(h.id, r.id));
+      roomGrid.appendChild(tile);
+    });
+    const addTile = document.createElement('div');
+    addTile.className = 'house-tile new-house';
+    addTile.textContent = '+ New room';
+    addTile.addEventListener('click', () => {
+      const r = makeRoom('Untitled room');
+      h.rooms.push(r);
+      goToRoom(h.id, r.id);
+      boardTitleEl.focus();
+      document.execCommand('selectAll', false, null);
+      scheduleSaveBoard();
+    });
+    roomGrid.appendChild(addTile);
+  }
+
+  houseTitleEl.addEventListener('input', () => {
+    currentHouse().name = houseTitleEl.textContent.trim() || 'Untitled house';
+    renderSidebar();
+    scheduleSaveBoard();
+  });
+  houseTitleEl.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); houseTitleEl.blur(); }
+  });
+
+  // ---------- Sidebar ----------
+  function closeIconPopovers(){
+    openIconPopoverId = null;
+    boardListEl.querySelectorAll('.icon-color-popover').forEach(p => p.remove());
+  }
+
+  function renderSidebar(){
+    boardListEl.innerHTML = '';
+    state.houses.forEach((h) => {
+      const item = document.createElement('div');
+      item.className = 'board-item' + (h.id === state.currentHouseId && state.view !== 'home' ? ' active' : '');
+
+      const iconBtn = document.createElement('button');
+      iconBtn.className = 'board-icon-btn';
+      iconBtn.title = 'Change icon color';
+      iconBtn.innerHTML = homeIconSVG(h.iconColor);
+      iconBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if(openIconPopoverId === h.id){ closeIconPopovers(); return; }
+        closeIconPopovers();
+        openIconPopoverId = h.id;
+        const pop = document.createElement('div');
+        pop.className = 'icon-color-popover';
+        ICON_COLORS.forEach(hex => {
+          const sw = document.createElement('div');
+          sw.className = 'swatch';
+          sw.style.background = hex;
+          sw.addEventListener('click', ev => {
+            ev.stopPropagation();
+            h.iconColor = hex;
+            closeIconPopovers();
+            renderSidebar();
+            scheduleSaveBoard();
+          });
+          pop.appendChild(sw);
+        });
+        item.appendChild(pop);
+      });
+
+      const label = document.createElement('span');
+      label.textContent = h.name;
+      const count = document.createElement('span');
+      count.className = 'count';
+      count.textContent = h.rooms.length || '';
+      item.appendChild(iconBtn);
+      item.appendChild(label);
+      item.appendChild(count);
+      item.addEventListener('click', () => { closeIconPopovers(); goToHouse(h.id); });
+      boardListEl.appendChild(item);
+    });
+  }
+  document.addEventListener('click', e => {
+    if(!e.target.closest('.icon-color-popover') && !e.target.closest('.board-icon-btn')) closeIconPopovers();
+  });
+
+  document.getElementById('addBoardBtn').addEventListener('click', () => {
+    const h = makeHouse('Untitled house');
+    h.rooms.push(makeRoom('General'));
+    state.houses.push(h);
+    goToHouse(h.id);
+    houseTitleEl.focus();
+    document.execCommand('selectAll', false, null);
+    scheduleSaveBoard();
+  });
+
+  boardTitleEl.addEventListener('input', () => {
+    currentRoom().name = boardTitleEl.textContent.trim() || 'Untitled room';
+    renderSidebar();
+    scheduleSaveBoard();
+  });
+  boardTitleEl.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); boardTitleEl.blur(); }
+  });
+
+  // ---------- Rendering the room canvas ----------
+  function clearCanvasCards(){
+    [...canvas.querySelectorAll('.card')].forEach(el => el.remove());
+  }
+
+  // ---------- Undo / redo ----------
+  function snapshotRoom(r){
+    return JSON.stringify({cards: r.cards, arrows: r.arrows});
+  }
+  function pushHistory(){
+    const r = currentRoom();
+    r.history.push(snapshotRoom(r));
+    if(r.history.length > 60) r.history.shift();
+    r.redo = [];
+    updateHistoryButtons();
+    scheduleSaveBoard();
+  }
+  function undo(){
+    const r = currentRoom();
+    if(!r.history.length) return;
+    r.redo.push(snapshotRoom(r));
+    const data = JSON.parse(r.history.pop());
+    r.cards = data.cards; r.arrows = data.arrows;
+    renderRoom();
+    scheduleSaveBoard();
+  }
+  function redo(){
+    const r = currentRoom();
+    if(!r.redo.length) return;
+    r.history.push(snapshotRoom(r));
+    const data = JSON.parse(r.redo.pop());
+    r.cards = data.cards; r.arrows = data.arrows;
+    renderRoom();
+    scheduleSaveBoard();
+  }
+  function updateHistoryButtons(){
+    const r = currentRoom();
+    if(!r) return;
+    undoBtn.disabled = !r.history.length;
+    redoBtn.disabled = !r.redo.length;
+  }
+  window.addEventListener('keydown', e => {
+    if(state.view !== 'room') return;
+    if(!(e.ctrlKey || e.metaKey)) return;
+    if(document.activeElement && document.activeElement.isContentEditable) return;
+    const key = e.key.toLowerCase();
+    if(key === 'z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    else if(key === 'y'){ e.preventDefault(); redo(); }
+  });
+
+  function renderRoom(){
+    const h = currentHouse(), r = currentRoom();
+    boardTitleEl.textContent = r.name;
+    roomCrumb.textContent = h.name + ' /';
+    applyAtmosphere(r);
+    clearCanvasCards();
+    r.cards.forEach(c => canvas.appendChild(buildCardEl(c)));
+    applyTransform();
+    drawOverlay();
+    emptyHint.style.display = r.cards.length ? 'none' : 'block';
+    updateZoomLabel();
+    updateHistoryButtons();
+  }
+
+  function applyTransform(){
+    const r = currentRoom();
+    canvas.style.transform = `translate(${r.pan.x}px, ${r.pan.y}px) scale(${r.zoom})`;
+    const dotSize = 26 * r.zoom;
+    canvasWrap.style.backgroundSize = `${dotSize}px ${dotSize}px`;
+    canvasWrap.style.backgroundPosition = `${r.pan.x}px ${r.pan.y}px`;
+  }
+
+  function updateZoomLabel(){
+    zoomLabel.textContent = Math.round(currentRoom().zoom * 100) + '%';
+  }
+
+  // ---------- Card creation ----------
+  function viewportCenterCanvasCoords(){
+    const r = currentRoom();
+    const rect = canvasWrap.getBoundingClientRect();
+    return {
+      x: (rect.width/2 - r.pan.x) / r.zoom - 90,
+      y: (rect.height/2 - r.pan.y) / r.zoom - 60
+    };
+  }
+
+  function addCard(type){
+    pushHistory();
+    const r = currentRoom();
+    const pos = viewportCenterCanvasCoords();
+    const jitter = () => (Math.random()*40 - 20);
+    const base = {
+      id: nextId(), type,
+      x: pos.x + jitter(), y: pos.y + jitter(),
+      w: DEFAULT_W[type], color: 'cream',
+      rotation: (Math.random()*3 - 1.5).toFixed(2)*1,
+    };
+    if(type === 'note') base.content = '';
+    if(type === 'headline') base.content = '';
+    if(type === 'image') base.url = '';
+    if(type === 'checklist'){ base.title = 'Checklist'; base.items = []; }
+
+    r.cards.push(base);
+    const el = buildCardEl(base);
+    canvas.appendChild(el);
+    emptyHint.style.display = 'none';
+
+    requestAnimationFrame(() => {
+      if(type === 'note'){ el.querySelector('.note-text').focus(); }
+      if(type === 'headline'){ el.querySelector('.headline-text').focus(); }
+      if(type === 'image'){ el.querySelector('input')?.focus(); }
+      if(type === 'checklist'){ el.querySelector('.check-title').focus(); document.execCommand('selectAll', false, null); }
+    });
+  }
+
+  document.getElementById('addNote').addEventListener('click', () => addCard('note'));
+  document.getElementById('addImage').addEventListener('click', () => addCard('image'));
+  document.getElementById('addCheck').addEventListener('click', () => addCard('checklist'));
+  document.getElementById('addHeadline').addEventListener('click', () => addCard('headline'));
+
+  function deleteCard(id){
+    pushHistory();
+    const r = currentRoom();
+    r.cards = r.cards.filter(c => c.id !== id);
+    r.arrows = r.arrows.filter(a =>
+      !((a.from.cardId === id) || (a.to.cardId === id)));
+    const el = canvas.querySelector(`[data-id="${id}"]`);
+    if(el) el.remove();
+    drawOverlay();
+    emptyHint.style.display = r.cards.length ? 'none' : 'block';
+  }
+
+  // ---------- Build a card DOM element ----------
+  function buildCardEl(card){
+    const el = document.createElement('div');
+    el.className = `card type-${card.type}`;
+    el.dataset.id = card.id;
+    el.style.left = card.x + 'px';
+    el.style.top = card.y + 'px';
+    el.style.width = card.w + 'px';
+    el.style.background = COLORS.find(c => c.name === card.color).hex;
+    el.style.transform = `rotate(${card.rotation}deg)`;
+
+    const head = document.createElement('div');
+    head.className = 'card-head';
+
+    const swatches = document.createElement('div');
+    swatches.className = 'swatches';
+    COLORS.forEach(c => {
+      const sw = document.createElement('div');
+      sw.className = 'swatch';
+      sw.style.background = c.hex;
+      sw.title = c.name;
+      sw.addEventListener('mousedown', e => e.stopPropagation());
+      sw.addEventListener('click', e => {
+        e.stopPropagation();
+        pushHistory();
+        card.color = c.name;
+        el.style.background = c.hex;
+      });
+      swatches.appendChild(sw);
+    });
+    head.appendChild(swatches);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'icon-btn';
+    delBtn.innerHTML = svgX();
+    delBtn.title = 'Delete';
+    delBtn.addEventListener('mousedown', e => e.stopPropagation());
+    delBtn.addEventListener('click', e => { e.stopPropagation(); deleteCard(card.id); });
+    head.appendChild(delBtn);
+
+    el.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'card-body';
+    body.appendChild(buildBody(card, el));
+    el.appendChild(body);
+
+    el.addEventListener('mousedown', e => onCardMouseDown(e, card, el));
+
+    return el;
+  }
+
+  function svgX(){
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
+  }
+
+  // Lets a first click on a text field bubble up (so the card can be grabbed
+  // and dragged), but once that field is actually focused/being edited,
+  // protects normal text selection from being hijacked into a drag.
+  // Also records undo history right before a fresh edit begins.
+  function guardEditableDrag(el){
+    return e => {
+      if(document.activeElement === el){ e.stopPropagation(); }
+      else { pushHistory(); }
+    };
+  }
+
+  function buildBody(card, cardEl){
+    const frag = document.createDocumentFragment();
+
+    if(card.type === 'note'){
+      const tag = document.createElement('div');
+      tag.className = 'card-tag';
+      tag.textContent = 'idea';
+      frag.appendChild(tag);
+
+      const div = document.createElement('div');
+      div.className = 'note-text';
+      div.contentEditable = 'true';
+      div.dataset.ph = 'Type an idea…';
+      div.textContent = card.content;
+      div.addEventListener('mousedown', guardEditableDrag(div));
+      div.addEventListener('input', () => { card.content = div.textContent; scheduleSaveBoard(); });
+      frag.appendChild(div);
+    }
+
+    if(card.type === 'headline'){
+      const div = document.createElement('div');
+      div.className = 'headline-text';
+      div.contentEditable = 'true';
+      div.dataset.ph = 'Headline…';
+      div.textContent = card.content;
+      div.addEventListener('mousedown', guardEditableDrag(div));
+      div.addEventListener('input', () => { card.content = div.textContent; scheduleSaveBoard(); });
+      frag.appendChild(div);
+    }
+
+    if(card.type === 'image'){
+      if(card.url){
+        frag.appendChild(imageBlock(card));
+      } else {
+        frag.appendChild(imageInputBlock(card, cardEl));
+      }
+    }
+
+    if(card.type === 'checklist'){
+      const title = document.createElement('div');
+      title.className = 'check-title';
+      title.contentEditable = 'true';
+      title.textContent = card.title;
+      title.addEventListener('mousedown', guardEditableDrag(title));
+      title.addEventListener('input', () => { card.title = title.textContent; scheduleSaveBoard(); });
+      frag.appendChild(title);
+
+      const list = document.createElement('div');
+      list.className = 'check-list';
+      card.items.forEach(it => list.appendChild(checkItemEl(card, it, list)));
+      frag.appendChild(list);
+
+      const add = document.createElement('div');
+      add.className = 'check-add';
+      add.contentEditable = 'true';
+      add.addEventListener('mousedown', guardEditableDrag(add));
+      add.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){
+          e.preventDefault();
+          const text = add.textContent.trim();
+          if(text){
+            pushHistory();
+            const item = {id: nextId(), text, done:false};
+            card.items.push(item);
+            list.appendChild(checkItemEl(card, item, list));
+            add.textContent = '';
+          }
+        }
+      });
+      frag.appendChild(add);
+    }
+
+    return frag;
+  }
+
+  function imageInputBlock(card, cardEl){
+    const wrap = document.createElement('div');
+    wrap.className = 'img-input-wrap';
+
+    const uploadBtn = document.createElement('button');
+    uploadBtn.type = 'button';
+    uploadBtn.className = 'img-upload-btn';
+    uploadBtn.textContent = '⇧ Upload image';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+
+    uploadBtn.addEventListener('mousedown', e => e.stopPropagation());
+    uploadBtn.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+    fileInput.addEventListener('click', e => e.stopPropagation());
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        card.url = reader.result;
+        const body = cardEl.querySelector('.card-body');
+        body.innerHTML = '';
+        body.appendChild(imageBlock(card));
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const or = document.createElement('div');
+    or.className = 'img-or';
+    or.textContent = 'or';
+
+    const input = document.createElement('input');
+    input.className = 'img-input';
+    input.placeholder = 'Paste an image URL, press ↵';
+    input.addEventListener('mousedown', e => e.stopPropagation());
+    input.addEventListener('keydown', e => {
+      if(e.key === 'Enter' && input.value.trim()){
+        card.url = input.value.trim();
+        const body = cardEl.querySelector('.card-body');
+        body.innerHTML = '';
+        body.appendChild(imageBlock(card));
+      }
+    });
+
+    wrap.appendChild(uploadBtn);
+    wrap.appendChild(fileInput);
+    wrap.appendChild(or);
+    wrap.appendChild(input);
+    return wrap;
+  }
+
+  function imageBlock(card){
+    const wrap = document.createElement('div');
+    const img = document.createElement('img');
+    img.src = card.url;
+    img.alt = 'pinned image';
+    img.addEventListener('error', () => {
+      wrap.innerHTML = '';
+      const broken = document.createElement('div');
+      broken.className = 'img-broken';
+      broken.textContent = "Couldn't load that image — check the URL.";
+      wrap.appendChild(broken);
+    });
+    wrap.appendChild(img);
+    return wrap;
+  }
+
+  function checkItemEl(card, item, listEl){
+    const row = document.createElement('div');
+    row.className = 'check-item' + (item.done ? ' done' : '');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = item.done;
+    cb.addEventListener('mousedown', e => e.stopPropagation());
+    cb.addEventListener('change', () => {
+      pushHistory();
+      item.done = cb.checked;
+      row.classList.toggle('done', item.done);
+    });
+    const text = document.createElement('div');
+    text.className = 'ci-text';
+    text.contentEditable = 'true';
+    text.textContent = item.text;
+    text.addEventListener('mousedown', guardEditableDrag(text));
+    text.addEventListener('input', () => { item.text = text.textContent; scheduleSaveBoard(); });
+    const del = document.createElement('button');
+    del.className = 'icon-btn';
+    del.innerHTML = svgX();
+    del.addEventListener('mousedown', e => e.stopPropagation());
+    del.addEventListener('click', () => {
+      pushHistory();
+      card.items = card.items.filter(i => i.id !== item.id);
+      row.remove();
+    });
+    row.appendChild(cb);
+    row.appendChild(text);
+    row.appendChild(del);
+    return row;
+  }
+
+  // ---------- Dragging cards ----------
+  let dragging = null;
+  let dragCandidate = null;
+  const DRAG_THRESHOLD = 4;
+
+  function onCardMouseDown(e, card, el){
+    if(state.arrowMode){
+      e.stopPropagation();
+      startArrowDraw(e, {cardId: card.id});
+      return;
+    }
+    if(e.target.closest('.icon-btn') || e.target.closest('.swatch') || e.target.closest('input')) return;
+    dragCandidate = {card, el, startX: e.clientX, startY: e.clientY};
+  }
+  window.addEventListener('mousemove', e => {
+    if(dragCandidate && !dragging){
+      const dx = e.clientX - dragCandidate.startX, dy = e.clientY - dragCandidate.startY;
+      if(Math.hypot(dx, dy) > DRAG_THRESHOLD){
+        pushHistory();
+        dragging = dragCandidate;
+        dragging.el.classList.add('dragging');
+      }
+    }
+    if(!dragging) return;
+    const zoom = currentRoom().zoom;
+    dragging.card.x += e.movementX / zoom;
+    dragging.card.y += e.movementY / zoom;
+    dragging.el.style.left = dragging.card.x + 'px';
+    dragging.el.style.top = dragging.card.y + 'px';
+    drawOverlay();
+    scheduleSaveBoard();
+  });
+  window.addEventListener('mouseup', () => {
+    if(dragging){ dragging.el.classList.remove('dragging'); }
+    dragging = null;
+    dragCandidate = null;
+  });
+
+  // ---------- Bending arrows via their handle ----------
+  window.addEventListener('mousemove', e => {
+    if(!draggingHandle) return;
+    const zoom = currentRoom().zoom;
+    draggingHandle.cx += e.movementX / zoom;
+    draggingHandle.cy += e.movementY / zoom;
+    drawOverlay();
+    scheduleSaveBoard();
+  });
+  window.addEventListener('mouseup', () => { draggingHandle = null; });
+
+  // ---------- Panning the canvas ----------
+  let panning = null;
+  canvasWrap.addEventListener('mousedown', e => {
+    if(e.target !== canvasWrap && e.target !== canvas && e.target !== connLayer) return;
+    if(state.arrowMode){ startArrowDraw(e, null); return; }
+    panning = true;
+    canvasWrap.classList.add('panning');
+  });
+  window.addEventListener('mousemove', e => {
+    if(drawingArrow){ updateArrowDraw(e); return; }
+    if(!panning) return;
+    const r = currentRoom();
+    r.pan.x += e.movementX;
+    r.pan.y += e.movementY;
+    applyTransform();
+  });
+  window.addEventListener('mouseup', e => {
+    if(drawingArrow){ finishArrowDraw(e); }
+    panning = false;
+    canvasWrap.classList.remove('panning');
+  });
+
+  arrowBtn.addEventListener('click', () => setArrowMode(!state.arrowMode));
+
+  // ---------- Freehand / card-to-card arrow drawing ----------
+  let drawingArrow = null;
+  let tempArrowEl = null;
+
+  function screenToCanvas(e){
+    const r = currentRoom();
+    const rect = canvasWrap.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left - r.pan.x) / r.zoom,
+      y: (e.clientY - rect.top - r.pan.y) / r.zoom
+    };
+  }
+
+  function cardCenter(card){
+    const el = canvas.querySelector(`[data-id="${card.id}"]`);
+    const h = el ? el.offsetHeight : 60;
+    return {x: card.x + card.w/2, y: card.y + h/2};
+  }
+
+  function startArrowDraw(e, startAnchor){
+    const startPoint = startAnchor ? cardCenter(findCard(startAnchor.cardId)) : screenToCanvas(e);
+    drawingArrow = {
+      startAnchor: startAnchor ? {cardId: startAnchor.cardId} : {x: startPoint.x, y: startPoint.y},
+      startPoint, currentPoint: startPoint
+    };
+    tempArrowEl = document.createElementNS('http://www.w3.org/2000/svg','line');
+    tempArrowEl.setAttribute('class', 'thread draw-temp');
+    tempArrowEl.setAttribute('marker-end','url(#arrowhead)');
+    tempArrowEl.setAttribute('x1', startPoint.x);
+    tempArrowEl.setAttribute('y1', startPoint.y);
+    tempArrowEl.setAttribute('x2', startPoint.x);
+    tempArrowEl.setAttribute('y2', startPoint.y);
+    connLayer.appendChild(tempArrowEl);
+  }
+
+  function updateArrowDraw(e){
+    const p = screenToCanvas(e);
+    drawingArrow.currentPoint = p;
+    tempArrowEl.setAttribute('x2', p.x);
+    tempArrowEl.setAttribute('y2', p.y);
+  }
+
+  function finishArrowDraw(e){
+    const endCardEl = e.target && e.target.closest ? e.target.closest('.card') : null;
+    const endPoint = screenToCanvas(e);
+    let endAnchor;
+    if(endCardEl && !(drawingArrow.startAnchor.cardId === endCardEl.dataset.id)){
+      endAnchor = {cardId: endCardEl.dataset.id};
+    } else {
+      endAnchor = {x: endPoint.x, y: endPoint.y};
+    }
+
+    const dx = drawingArrow.currentPoint.x - drawingArrow.startPoint.x;
+    const dy = drawingArrow.currentPoint.y - drawingArrow.startPoint.y;
+    const longEnough = Math.hypot(dx, dy) > 6;
+    const isCardToCard = drawingArrow.startAnchor.cardId && endAnchor.cardId;
+
+    if(longEnough || isCardToCard){
+      pushHistory();
+      currentRoom().arrows.push({
+        id: nextId(),
+        from: drawingArrow.startAnchor,
+        to: endAnchor
+      });
+    }
+    if(tempArrowEl) tempArrowEl.remove();
+    tempArrowEl = null;
+    drawingArrow = null;
+    drawOverlay();
+  }
+
+  // ---------- Card-edge helpers ----------
+  function getCardRect(card){
+    const el = canvas.querySelector(`[data-id="${card.id}"]`);
+    if(!el) return null;
+    return {left:card.x, top:card.y, right:card.x + el.offsetWidth, bottom:card.y + el.offsetHeight};
+  }
+
+  function projectToEdge(px, py, rect){
+    const cx = Math.min(Math.max(px, rect.left), rect.right);
+    const cy = Math.min(Math.max(py, rect.top), rect.bottom);
+    const dLeft = cx-rect.left, dRight = rect.right-cx, dTop = cy-rect.top, dBottom = rect.bottom-cy;
+    const m = Math.min(dLeft, dRight, dTop, dBottom);
+    if(m === dLeft) return {x:rect.left, y:cy};
+    if(m === dRight) return {x:rect.right, y:cy};
+    if(m === dTop) return {x:cx, y:rect.top};
+    return {x:cx, y:rect.bottom};
+  }
+
+  function rectCenter(rect){ return {x:(rect.left+rect.right)/2, y:(rect.top+rect.bottom)/2}; }
+
+  // ---------- Zoom ----------
+  function setZoom(z){
+    const r = currentRoom();
+    r.zoom = Math.min(1.6, Math.max(0.4, z));
+    applyTransform();
+    updateZoomLabel();
+  }
+  document.getElementById('zoomIn').addEventListener('click', () => setZoom(currentRoom().zoom + 0.1));
+  document.getElementById('zoomOut').addEventListener('click', () => setZoom(currentRoom().zoom - 0.1));
+  canvasWrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    const r = currentRoom();
+    const rect = canvasWrap.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
+    const oldZoom = r.zoom;
+    const newZoom = Math.min(1.6, Math.max(0.4, oldZoom - e.deltaY * 0.0016));
+    const canvasX = (mouseX - r.pan.x) / oldZoom;
+    const canvasY = (mouseY - r.pan.y) / oldZoom;
+    r.pan.x = mouseX - canvasX * newZoom;
+    r.pan.y = mouseY - canvasY * newZoom;
+    r.zoom = newZoom;
+    applyTransform();
+    updateZoomLabel();
+  }, {passive:false});
+
+  // ---------- Overlay: arrows ----------
+  function ensureDefs(){
+    let defs = connLayer.querySelector('defs');
+    if(defs) return;
+    defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+    defs.innerHTML = `
+      <marker id="arrowhead" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+        <path d="M1.5,1.5 L10,6 L1.5,10.5" fill="none" stroke="#5b5fef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>`;
+    connLayer.appendChild(defs);
+  }
+
+  function makeHandle(onGrab){
+    const handle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    handle.setAttribute('r', 5);
+    handle.setAttribute('class', 'bend-handle');
+    handle.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      pushHistory();
+      draggingHandle = onGrab();
+    });
+    return handle;
+  }
+
+  function resolveArrowPoints(arrow){
+    const rectFrom = arrow.from.cardId ? getCardRect(findCard(arrow.from.cardId)) : null;
+    const rectTo = arrow.to.cardId ? getCardRect(findCard(arrow.to.cardId)) : null;
+    if(arrow.from.cardId && !rectFrom) return null;
+    if(arrow.to.cardId && !rectTo) return null;
+    const roughFrom = rectFrom ? rectCenter(rectFrom) : {x:arrow.from.x, y:arrow.from.y};
+    const roughTo = rectTo ? rectCenter(rectTo) : {x:arrow.to.x, y:arrow.to.y};
+    const p1 = rectFrom ? projectToEdge(roughTo.x, roughTo.y, rectFrom) : roughFrom;
+    const p2 = rectTo ? projectToEdge(roughFrom.x, roughFrom.y, rectTo) : roughTo;
+    return {p1, p2};
+  }
+
+  function drawOverlay(){
+    const r = currentRoom();
+    connLayer.innerHTML = '';
+    ensureDefs();
+
+    r.arrows.forEach(arrow => {
+      const pts = resolveArrowPoints(arrow);
+      if(!pts) return;
+      const {p1, p2} = pts;
+      const liveCx = (p1.x + p2.x) / 2, liveCy = (p1.y + p2.y) / 2;
+      const cx = arrow.cx ?? liveCx, cy = arrow.cy ?? liveCy;
+      const d = `M ${p1.x} ${p1.y} Q ${cx} ${cy} ${p2.x} ${p2.y}`;
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('class', 'line-group');
+
+      const hit = document.createElementNS('http://www.w3.org/2000/svg','path');
+      hit.setAttribute('d', d);
+      hit.setAttribute('class', 'thread-hit');
+      hit.addEventListener('click', () => {
+        if(state.arrowMode) return;
+        pushHistory();
+        r.arrows = r.arrows.filter(a => a.id !== arrow.id);
+        drawOverlay();
+      });
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', d);
+      path.setAttribute('class', 'thread');
+      path.setAttribute('marker-end','url(#arrowhead)');
+
+      const handle = makeHandle(() => {
+        if(arrow.cx === undefined){ arrow.cx = liveCx; arrow.cy = liveCy; }
+        return arrow;
+      });
+      handle.setAttribute('cx', cx);
+      handle.setAttribute('cy', cy);
+
+      g.appendChild(hit); g.appendChild(path); g.appendChild(handle);
+      connLayer.appendChild(g);
+    });
+  }
+
+  // ---------- Search ----------
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    const cards = canvas.querySelectorAll('.card');
+    if(!q){ cards.forEach(c => c.classList.remove('dimmed')); return; }
+    cards.forEach(el => {
+      const match = el.textContent.toLowerCase().includes(q);
+      el.classList.toggle('dimmed', !match);
+    });
+  });
+
+  // ---------- Atmosphere (per room) ----------
+  let atmospherePopoverOpenFlag = false;
+  function closeAtmospherePopover(){
+    atmospherePopoverOpenFlag = false;
+    document.querySelectorAll('.atmosphere-popover').forEach(p => p.remove());
+  }
+  atmosphereBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if(atmospherePopoverOpenFlag){ closeAtmospherePopover(); return; }
+    closeAtmospherePopover();
+    atmospherePopoverOpenFlag = true;
+    const pop = document.createElement('div');
+    pop.className = 'atmosphere-popover';
+    pop.style.left = atmosphereBtn.offsetLeft + 'px';
+    ATMOSPHERES.forEach(a => {
+      const opt = document.createElement('div');
+      opt.className = 'atmosphere-opt';
+      opt.innerHTML = `<span class="swatch-pair"><span style="background:${a.bg}"></span><span style="background:${a.dot}"></span></span>${a.name}`;
+      opt.addEventListener('click', ev => {
+        ev.stopPropagation();
+        currentRoom().atmosphere = a;
+        applyAtmosphere(currentRoom());
+        closeAtmospherePopover();
+        scheduleSaveBoard();
+      });
+      pop.appendChild(opt);
+    });
+    atmosphereBtn.parentElement.appendChild(pop);
+  });
+  document.addEventListener('click', e => {
+    if(!e.target.closest('.atmosphere-popover') && e.target !== atmosphereBtn) closeAtmospherePopover();
+  });
+
+  // ---------- Invite (per house) ----------
+  let invitePopoverOpen = false;
+  function renderHouseInviteChips(){
+    const h = currentHouse();
+    houseInviteChipsEl.innerHTML = '';
+    h.invitedMembers.slice(0, 6).forEach(m => {
+      const chip = document.createElement('div');
+      chip.className = 'invite-chip';
+      chip.style.background = colorFor(m.name);
+      chip.title = m.name;
+      chip.textContent = initials(m.name);
+      houseInviteChipsEl.appendChild(chip);
+    });
+  }
+  function closeInvitePopover(){
+    invitePopoverOpen = false;
+    document.querySelectorAll('.invite-popover').forEach(p => p.remove());
+  }
+  function renderInvitePopoverBody(pop){
+    pop.innerHTML = '';
+    const h = currentHouse();
+    const h4 = document.createElement('h4');
+    h4.textContent = `Invite to "${h.name}"`;
+    const p = document.createElement('p');
+    p.textContent = 'Invited people can see every room in this house.';
+    pop.appendChild(h4); pop.appendChild(p);
+
+    if(h.invitedMembers.length){
+      const list = document.createElement('div');
+      list.className = 'invite-member-list';
+      h.invitedMembers.forEach(m => {
+        const row = document.createElement('div');
+        row.className = 'invite-member';
+        const dot = document.createElement('div');
+        dot.className = 'chip-dot';
+        dot.style.background = colorFor(m.name);
+        dot.textContent = initials(m.name);
+        const name = document.createElement('span');
+        name.className = 'name';
+        name.textContent = m.name;
+        const remove = document.createElement('button');
+        remove.textContent = '✕';
+        remove.addEventListener('click', () => {
+          h.invitedMembers = h.invitedMembers.filter(x => x.id !== m.id);
+          renderHouseInviteChips();
+          renderInvitePopoverBody(pop);
+          scheduleSaveBoard();
+        });
+        row.appendChild(dot); row.appendChild(name); row.appendChild(remove);
+        list.appendChild(row);
+      });
+      pop.appendChild(list);
+    }
+
+    const row = document.createElement('div');
+    row.className = 'invite-row';
+    const input = document.createElement('input');
+    input.placeholder = 'Name or email';
+    const addBtn = document.createElement('button');
+    addBtn.textContent = 'Invite';
+    function submitInvite(){
+      const v = input.value.trim();
+      if(!v) return;
+      h.invitedMembers.push({id: nextId(), name: v});
+      input.value = '';
+      renderHouseInviteChips();
+      renderInvitePopoverBody(pop);
+      scheduleSaveBoard();
+    }
+    addBtn.addEventListener('click', submitInvite);
+    input.addEventListener('keydown', e => { if(e.key === 'Enter') submitInvite(); });
+    row.appendChild(input); row.appendChild(addBtn);
+    pop.appendChild(row);
+
+    const linkBox = document.createElement('div');
+    linkBox.className = 'invite-link-box';
+    linkBox.innerHTML = `<label>Or share this house's invite link</label>`;
+    const linkInput = document.createElement('input');
+    linkInput.readOnly = true;
+    linkInput.value = `thethirdplace.app/h/${h.id}/join`;
+    linkInput.addEventListener('click', () => linkInput.select());
+    linkBox.appendChild(linkInput);
+    pop.appendChild(linkBox);
+  }
+  houseInviteBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if(invitePopoverOpen){ closeInvitePopover(); return; }
+    closeInvitePopover();
+    invitePopoverOpen = true;
+    const pop = document.createElement('div');
+    pop.className = 'invite-popover';
+    pop.style.right = '48px';
+    pop.style.top = '84px';
+    renderInvitePopoverBody(pop);
+    document.querySelector('.house-view').appendChild(pop);
+  });
+  document.addEventListener('click', e => {
+    if(!e.target.closest('.invite-popover') && e.target !== houseInviteBtn) closeInvitePopover();
+  });
+
+  // ---------- Access gate ----------
+  const gateView = document.getElementById('gateView');
+  const gateCard = document.getElementById('gateCard');
+  const appRoot = document.getElementById('appRoot');
+
+  function enterApp(){
+    state.accessGranted = true;
+    gateView.style.display = 'none';
+    appRoot.style.display = 'flex';
+    renderSidebar();
+    goHome();
+  }
+
+  function renderGate(){
+    if(state.gateStage === 'signup') renderGateSignup();
+    else if(state.gateStage === 'pending') renderGatePending();
+    else renderGateAdminLogin();
+  }
+
+  function openAdminGate(){
+    if(state.isAdminVerified){ enterApp(); return; }
+    state.gateStage = 'adminLogin';
+    renderGate();
+  }
+  document.getElementById('gateAdminCorner').addEventListener('click', openAdminGate);
+
+  function renderGateSignup(){
+    gateCard.className = 'gate-card';
+    gateCard.innerHTML = `
+      <div class="gate-product-mark">The Third Place</div>
+      <div class="gate-eyebrow">Invite only</div>
+      <h1>Request access to ${escapeHtml(state.communityName)}</h1>
+      <p class="sub">This board is exclusive to our community. Tell us a little about you and the admin will review your request.</p>
+      <div class="gate-field"><label>Name</label><input type="text" id="gateName" placeholder="Your name"></div>
+      <div class="gate-field"><label>Email</label><input type="email" id="gateEmail" placeholder="you@email.com"></div>
+      <div class="gate-field"><label>What brings you here? <span style="font-weight:400;">(optional)</span></label><textarea id="gateNote" placeholder="How you heard about us, what you're working on…"></textarea></div>
+      <div class="gate-mcq" id="mcqIdea">
+        <label>What best describes your ideas?</label>
+        <div class="gate-mcq-options" id="mcqIdeaOpts"></div>
+      </div>
+      <div class="gate-mcq" id="mcqWeird1">
+        <label>${WEIRD_Q1.question}</label>
+        <div class="gate-mcq-options" id="mcqWeird1Opts"></div>
+      </div>
+      <div class="gate-mcq" id="mcqWeird2">
+        <label>${WEIRD_Q2.question}</label>
+        <div class="gate-mcq-options" id="mcqWeird2Opts"></div>
+      </div>
+      <button class="gate-submit" id="gateSubmitBtn">Request access</button>
+    `;
+
+    const answers = {ideaType: null, weird1: null, weird2: null};
+    function buildChips(containerId, options, key){
+      const container = document.getElementById(containerId);
+      options.forEach(opt => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'gate-mcq-chip';
+        chip.textContent = opt;
+        chip.addEventListener('click', () => {
+          answers[key] = opt;
+          container.querySelectorAll('.gate-mcq-chip').forEach(c => c.classList.remove('selected'));
+          chip.classList.add('selected');
+        });
+        container.appendChild(chip);
+      });
+    }
+    buildChips('mcqIdeaOpts', IDEA_TYPE_OPTIONS, 'ideaType');
+    buildChips('mcqWeird1Opts', WEIRD_Q1.options, 'weird1');
+    buildChips('mcqWeird2Opts', WEIRD_Q2.options, 'weird2');
+
+    document.getElementById('gateSubmitBtn').addEventListener('click', () => {
+      const name = document.getElementById('gateName').value.trim();
+      const email = document.getElementById('gateEmail').value.trim();
+      const note = document.getElementById('gateNote').value.trim();
+      if(!name || !email){
+        document.getElementById(name ? 'gateEmail' : 'gateName').focus();
+        return;
+      }
+      const req = {id:genId('req'), name, email, note, ideaType: answers.ideaType, weird1: answers.weird1, weird2: answers.weird2};
+      state.pendingRequests.push(req);
+      state.myRequestId = req.id;
+      state.gateStage = 'pending';
+      renderGate();
+      scheduleSaveGate();
+      try{ localStorage.setItem('ttp_myEmail', email); } catch(err){}
+    });
+  }
+
+  function renderGatePending(){
+    gateCard.className = 'gate-card';
+    const mine = state.pendingRequests.find(r => r.id === state.myRequestId);
+    const name = mine ? mine.name : 'there';
+    gateCard.innerHTML = `
+      <div class="gate-product-mark">The Third Place</div>
+      <div class="gate-pending-icon"><svg viewBox="0 0 24 24"><path d="M12 2 2 12h3v9h6v-6h2v6h6v-9h3z"/></svg></div>
+      <h1>Thanks, ${escapeHtml(name)}</h1>
+      <p class="sub">Your request to join ${escapeHtml(state.communityName)} is with the admin now. Sit tight — you'll get access once it's reviewed.</p>
+      <div class="gate-footer-link"><a id="gateBackToSignup">← Back to sign up</a></div>
+    `;
+    document.getElementById('gateBackToSignup').addEventListener('click', () => {
+      state.gateStage = 'signup';
+      renderGate();
+    });
+  }
+
+  function renderGateAdminLogin(){
+    gateCard.className = 'gate-card';
+    gateCard.innerHTML = `
+      <div class="gate-product-mark">The Third Place</div>
+      <div class="gate-eyebrow">Admin</div>
+      <h1>Sign in as admin</h1>
+      <p class="sub">This panel is restricted to the community admin.</p>
+      <div class="gate-error" id="gateAdminError">That email or password isn't right.</div>
+      <div class="gate-field"><label>Admin email</label><input type="email" id="gateAdminEmail" placeholder="admin@email.com"></div>
+      <div class="gate-field"><label>Password</label><input type="password" id="gateAdminPassword" placeholder="••••••••"></div>
+      <button class="gate-submit" id="gateAdminContinue">Continue</button>
+      <div class="gate-footer-link"><a id="gateBackFromAdminLogin">← Back</a></div>
+    `;
+    const err = document.getElementById('gateAdminError');
+    const emailInput = document.getElementById('gateAdminEmail');
+    const passInput = document.getElementById('gateAdminPassword');
+    function attempt(){
+      const email = emailInput.value.trim().toLowerCase();
+      const pass = passInput.value;
+      if(email === ADMIN_EMAIL && pass === ADMIN_PASSWORD){
+        state.isAdminVerified = true;
+        err.classList.remove('visible');
+        enterApp();
+      } else {
+        err.classList.add('visible');
+      }
+    }
+    document.getElementById('gateAdminContinue').addEventListener('click', attempt);
+    emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') passInput.focus(); });
+    passInput.addEventListener('keydown', e => { if(e.key === 'Enter') attempt(); });
+    document.getElementById('gateBackFromAdminLogin').addEventListener('click', () => {
+      state.gateStage = state.myRequestId ? 'pending' : 'signup';
+      renderGate();
+    });
+  }
+
+  function renderInsideRooms(){
+    const slot = document.getElementById('insideRoomsSlot');
+    if(!slot) return;
+    if(!state.isAdminVerified){ slot.innerHTML = ''; return; }
+
+    slot.innerHTML = `
+      <div class="inside-rooms">
+        <div class="inside-rooms-head">
+          <h2>Inside Rooms</h2>
+          <span class="badge">Admin only</span>
+        </div>
+        <p>Review who's asking to join ${escapeHtml(state.communityName)}.</p>
+        <div class="gate-admin-name"><span>Community</span><input type="text" id="insideCommunityName" value="${escapeHtml(state.communityName)}"></div>
+        <div class="inside-rooms-cols">
+          <div>
+            <div class="gate-section-label">Pending requests</div>
+            <div class="gate-scroll" id="insideRequestList"></div>
+          </div>
+          <div>
+            <div class="gate-section-label">Members</div>
+            <div class="gate-scroll" id="insideMemberList"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('insideCommunityName').addEventListener('input', e => {
+      state.communityName = e.target.value.trim() || 'Untitled Community';
+      scheduleSaveGate();
+    });
+
+    const reqList = document.getElementById('insideRequestList');
+    if(!state.pendingRequests.length){
+      reqList.innerHTML = `<div class="gate-empty">No pending requests.</div>`;
+    } else {
+      reqList.innerHTML = '';
+      state.pendingRequests.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'gate-request';
+        const answerChips = [r.ideaType, r.weird1, r.weird2].filter(Boolean).map(a => `<span>${escapeHtml(a)}</span>`).join('');
+        card.innerHTML = `
+          <div class="name">${escapeHtml(r.name)}</div>
+          <div class="email">${escapeHtml(r.email)}</div>
+          ${r.note ? `<div class="note">"${escapeHtml(r.note)}"</div>` : ''}
+          ${answerChips ? `<div class="answers">${answerChips}</div>` : ''}
+          <div class="gate-request-actions">
+            <button class="gate-btn-accept">Accept</button>
+            <button class="gate-btn-reject">Reject</button>
+          </div>
+        `;
+        card.querySelector('.gate-btn-accept').addEventListener('click', () => {
+          state.pendingRequests = state.pendingRequests.filter(x => x.id !== r.id);
+          state.members.push({id:r.id, name:r.name, email:r.email});
+          renderInsideRooms();
+          scheduleSaveGate();
+        });
+        card.querySelector('.gate-btn-reject').addEventListener('click', () => {
+          state.pendingRequests = state.pendingRequests.filter(x => x.id !== r.id);
+          renderInsideRooms();
+          scheduleSaveGate();
+        });
+        reqList.appendChild(card);
+      });
+    }
+
+    const memList = document.getElementById('insideMemberList');
+    if(!state.members.length){
+      memList.innerHTML = `<div class="gate-empty">No members yet.</div>`;
+    } else {
+      memList.innerHTML = '';
+      state.members.forEach(m => {
+        const row = document.createElement('div');
+        row.className = 'gate-member-row';
+        row.innerHTML = `<div class="chip-dot" style="background:${colorFor(m.name)}">${initials(m.name)}</div><span>${escapeHtml(m.name)}</span>`;
+        memList.appendChild(row);
+      });
+    }
+  }
+
+  // ---------- Init ----------
+  initSharedData();
+
+})();
+</script>
+</body>
+</html>
