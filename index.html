@@ -389,7 +389,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot
+  getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -453,36 +453,32 @@ const db = getFirestore(fbApp);
     };
   }
 
-  function makeHouse(name){
+  function makeHouse(name, ownerEmail){
     const color = ICON_COLORS[boardColorCounter % ICON_COLORS.length];
     boardColorCounter++;
     return {
       id: genId('h'), name, iconColor: color,
+      ownerEmail, memberEmails: [ownerEmail],
       invitedMembers: [], rooms: []
     };
   }
 
   const state = {
-    houses: [ makeHouse('Short Film Ideas'), makeHouse('Brand Refresh'), makeHouse('Random Sparks') ],
+    houses: [],
     currentHouseId: null,
     currentRoomId: null,
     view: 'home', // 'home' | 'house' | 'room'
     arrowMode: false,
     communityName: 'The Night Owls Collective',
-    gateStage: 'signup', // 'signup' | 'pending' | 'adminLogin' | 'admin'
+    gateStage: 'signup', // 'signup' | 'pending' | 'adminLogin'
     pendingRequests: [],
     members: [],
     myRequestId: null,
+    myEmail: null,
     accessGranted: false,
     isAdminVerified: false,
+    houseSyncStarted: false,
   };
-
-  // seed rooms inside each house
-  state.houses[0].rooms.push(makeRoom('Pre-Production'), makeRoom('Locations'));
-  state.houses[1].rooms.push(makeRoom('Moodboard'));
-  state.houses[2].rooms.push(makeRoom('General'));
-  state.currentHouseId = state.houses[0].id;
-  state.currentRoomId = state.houses[0].rooms[0].id;
 
   let openIconPopoverId = null;
   let atmospherePopoverOpen = false;
@@ -495,9 +491,13 @@ const db = getFirestore(fbApp);
   );
   state.members.push({id:genId('mem'), name:'Priya Nandakumar', email:'priya@driftlab.co'});
 
-  // seed a little starter content in the first room
-  (function seed(){
-    const r = state.houses[0].rooms[0];
+  // Builds a private starter house for a brand-new user (their own copy —
+  // not shared with anyone else). Called the first time someone with no
+  // houses yet lands in the app.
+  function buildStarterHouse(ownerEmail){
+    const h = makeHouse('Short Film Ideas', ownerEmail);
+    h.rooms.push(makeRoom('Pre-Production'), makeRoom('Locations'));
+    const r = h.rooms[0];
     r.cards.push(
       {id:nextId(), type:'headline', x:120, y:60, w:280, color:'lilac', rotation:-0.6, content:'Rooftop Short Film'},
       {id:nextId(), type:'note', x:120, y:170, w:220, color:'yellow', rotation:-1.5, content:'What if the short opens mid-conversation — no establishing shot, straight into the argument?'},
@@ -509,30 +509,42 @@ const db = getFirestore(fbApp);
       ]}
     );
     r.arrows.push({id:nextId(), from:{cardId:r.cards[0].id}, to:{cardId:r.cards[1].id}});
-    state.houses[0].invitedMembers.push({id:nextId(), name:'Alex Rivera'});
-  })();
+    return h;
+  }
 
   // ---------- Shared data (Firestore) ----------
-  // Everything below keeps state.houses (the actual content) and the sign-up/
-  // membership lists in sync across every visitor via two Firestore documents.
-  const BOARD_DOC = doc(db, 'app', 'boardData');
+  // Houses are private by default: each is its own Firestore document,
+  // visible only to its owner plus anyone explicitly invited to it (matched
+  // by email). Sign-up/membership data stays global, since that's genuinely
+  // shared (it's the community's front door, not any one person's content).
+  //
+  // Important caveat: this app has no real authentication (no Firebase Auth),
+  // so "who you are" is just an email typed into a form and remembered in
+  // this browser. Isolation is enforced by the app, not by cryptographically
+  // verified identity — a technically determined person could still query
+  // Firestore directly. Adding real auth would be the next step for genuine
+  // security; this matches the app's existing admin-password approach.
+  const HOUSES_COL = collection(db, 'houses');
   const GATE_DOC = doc(db, 'app', 'gateData');
   let applyingRemoteBoard = false;
   let applyingRemoteGate = false;
-  let boardSaveTimer = null;
-  let gateSaveTimer = null;
+  const houseSaveTimers = {};
 
   function scheduleSaveBoard(){
-    if(applyingRemoteBoard) return;
-    clearTimeout(boardSaveTimer);
-    boardSaveTimer = setTimeout(() => {
-      setDoc(BOARD_DOC, {houses: state.houses}).catch(err => console.error('Save failed', err));
+    const h = currentHouse();
+    if(!h || applyingRemoteBoard) return;
+    clearTimeout(houseSaveTimers[h.id]);
+    houseSaveTimers[h.id] = setTimeout(() => {
+      setDoc(doc(db, 'houses', h.id), h).catch(err => console.error('Save failed', err));
     }, 900);
+  }
+  function saveHouseNow(h){
+    return setDoc(doc(db, 'houses', h.id), h).catch(err => console.error('Save failed', err));
   }
   function scheduleSaveGate(){
     if(applyingRemoteGate) return;
-    clearTimeout(gateSaveTimer);
-    gateSaveTimer = setTimeout(() => {
+    clearTimeout(scheduleSaveGate._t);
+    scheduleSaveGate._t = setTimeout(() => {
       setDoc(GATE_DOC, {
         communityName: state.communityName,
         pendingRequests: state.pendingRequests,
@@ -542,7 +554,6 @@ const db = getFirestore(fbApp);
   }
 
   function reflectRemoteBoardChange(){
-    // Keep current navigation pointing at something that still exists.
     if(!state.houses.find(h => h.id === state.currentHouseId)){
       state.currentHouseId = state.houses[0] ? state.houses[0].id : null;
     }
@@ -559,6 +570,12 @@ const db = getFirestore(fbApp);
   }
 
   function reflectRemoteGateChange(){
+    // If my own pending request just got approved while I'm sitting here
+    // (in another tab, say), let me straight in.
+    if(!state.accessGranted && state.myRequestId){
+      const nowMember = state.members.find(m => m.id === state.myRequestId);
+      if(nowMember){ enterApp(); return; }
+    }
     if(state.accessGranted){
       if(state.view === 'home') renderInsideRooms();
       return;
@@ -566,18 +583,29 @@ const db = getFirestore(fbApp);
     if(state.gateStage === 'pending') renderGate();
   }
 
-  async function initSharedData(){
-    try{
-      const boardSnap = await getDoc(BOARD_DOC);
-      if(boardSnap.exists() && boardSnap.data().houses && boardSnap.data().houses.length){
-        state.houses = boardSnap.data().houses;
-        state.currentHouseId = state.houses[0].id;
-        state.currentRoomId = state.houses[0].rooms[0] ? state.houses[0].rooms[0].id : null;
-      } else {
-        await setDoc(BOARD_DOC, {houses: state.houses});
+  // Starts the live, per-user houses listener. Only called once we actually
+  // know who "me" is (after sign-up, returning-visitor match, or admin login).
+  function startHouseSync(email){
+    if(state.houseSyncStarted) return;
+    state.houseSyncStarted = true;
+    state.myEmail = email;
+    const q = query(HOUSES_COL, where('memberEmails', 'array-contains', email));
+    onSnapshot(q, async snap => {
+      applyingRemoteBoard = true;
+      let houses = snap.docs.map(d => d.data());
+      if(!houses.length && !snap.metadata.fromCache){
+        // Brand-new user with nothing yet — give them their own starter house.
+        const starter = buildStarterHouse(email);
+        await saveHouseNow(starter);
+        houses = [starter];
       }
-    } catch(err){ console.error('Could not reach Firestore for board data', err); }
+      state.houses = houses;
+      reflectRemoteBoardChange();
+      applyingRemoteBoard = false;
+    }, err => console.error('House sync error', err));
+  }
 
+  async function initSharedData(){
     try{
       const gateSnap = await getDoc(GATE_DOC);
       if(gateSnap.exists()){
@@ -604,7 +632,7 @@ const db = getFirestore(fbApp);
       const pending = state.pendingRequests.find(r => r.email.toLowerCase() === savedEmail.toLowerCase());
       if(mem){
         state.myRequestId = mem.id;
-        renderSidebar();
+        state.myEmail = mem.email;
         enterApp();
       } else if(pending){
         state.myRequestId = pending.id;
@@ -618,14 +646,6 @@ const db = getFirestore(fbApp);
       renderGate();
     }
 
-    onSnapshot(BOARD_DOC, snap => {
-      if(!snap.exists()) return;
-      applyingRemoteBoard = true;
-      const houses = snap.data().houses;
-      if(houses && houses.length) state.houses = houses;
-      reflectRemoteBoardChange();
-      applyingRemoteBoard = false;
-    });
     onSnapshot(GATE_DOC, snap => {
       if(!snap.exists()) return;
       applyingRemoteGate = true;
@@ -775,13 +795,13 @@ const db = getFirestore(fbApp);
     addTile.className = 'house-tile new-house';
     addTile.textContent = '+ New house';
     addTile.addEventListener('click', () => {
-      const h = makeHouse('Untitled house');
+      const h = makeHouse('Untitled house', state.myEmail);
       h.rooms.push(makeRoom('General'));
       state.houses.push(h);
       goToHouse(h.id);
       houseTitleEl.focus();
       document.execCommand('selectAll', false, null);
-      scheduleSaveBoard();
+      saveHouseNow(h);
     });
     homeGrid.appendChild(addTile);
   }
@@ -892,13 +912,13 @@ const db = getFirestore(fbApp);
   });
 
   document.getElementById('addBoardBtn').addEventListener('click', () => {
-    const h = makeHouse('Untitled house');
+    const h = makeHouse('Untitled house', state.myEmail);
     h.rooms.push(makeRoom('General'));
     state.houses.push(h);
     goToHouse(h.id);
     houseTitleEl.focus();
     document.execCommand('selectAll', false, null);
-    scheduleSaveBoard();
+    saveHouseNow(h);
   });
 
   boardTitleEl.addEventListener('input', () => {
@@ -1622,7 +1642,7 @@ const db = getFirestore(fbApp);
     const h4 = document.createElement('h4');
     h4.textContent = `Invite to "${h.name}"`;
     const p = document.createElement('p');
-    p.textContent = 'Invited people can see every room in this house.';
+    p.textContent = 'Invited people see every room in this house once they sign up and are approved for ' + state.communityName + '.';
     pop.appendChild(h4); pop.appendChild(p);
 
     if(h.invitedMembers.length){
@@ -1642,6 +1662,7 @@ const db = getFirestore(fbApp);
         remove.textContent = '✕';
         remove.addEventListener('click', () => {
           h.invitedMembers = h.invitedMembers.filter(x => x.id !== m.id);
+          h.memberEmails = h.memberEmails.filter(e => e.toLowerCase() !== m.email.toLowerCase());
           renderHouseInviteChips();
           renderInvitePopoverBody(pop);
           scheduleSaveBoard();
@@ -1652,35 +1673,38 @@ const db = getFirestore(fbApp);
       pop.appendChild(list);
     }
 
+    const nameRow = document.createElement('div');
+    nameRow.className = 'invite-row';
+    const nameInput = document.createElement('input');
+    nameInput.placeholder = 'Name (optional)';
+    nameRow.appendChild(nameInput);
+    pop.appendChild(nameRow);
+
     const row = document.createElement('div');
     row.className = 'invite-row';
-    const input = document.createElement('input');
-    input.placeholder = 'Name or email';
+    const emailInput = document.createElement('input');
+    emailInput.type = 'email';
+    emailInput.placeholder = 'Their email';
     const addBtn = document.createElement('button');
     addBtn.textContent = 'Invite';
     function submitInvite(){
-      const v = input.value.trim();
-      if(!v) return;
-      h.invitedMembers.push({id: nextId(), name: v});
-      input.value = '';
+      const email = emailInput.value.trim();
+      if(!email || !email.includes('@')){ emailInput.focus(); return; }
+      const name = nameInput.value.trim() || email;
+      if(!h.memberEmails.some(e => e.toLowerCase() === email.toLowerCase())){
+        h.memberEmails.push(email);
+      }
+      h.invitedMembers.push({id: nextId(), name, email});
+      nameInput.value = '';
+      emailInput.value = '';
       renderHouseInviteChips();
       renderInvitePopoverBody(pop);
       scheduleSaveBoard();
     }
     addBtn.addEventListener('click', submitInvite);
-    input.addEventListener('keydown', e => { if(e.key === 'Enter') submitInvite(); });
-    row.appendChild(input); row.appendChild(addBtn);
+    emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') submitInvite(); });
+    row.appendChild(emailInput); row.appendChild(addBtn);
     pop.appendChild(row);
-
-    const linkBox = document.createElement('div');
-    linkBox.className = 'invite-link-box';
-    linkBox.innerHTML = `<label>Or share this house's invite link</label>`;
-    const linkInput = document.createElement('input');
-    linkInput.readOnly = true;
-    linkInput.value = `thethirdplace.app/h/${h.id}/join`;
-    linkInput.addEventListener('click', () => linkInput.select());
-    linkBox.appendChild(linkInput);
-    pop.appendChild(linkBox);
   }
   houseInviteBtn.addEventListener('click', e => {
     e.stopPropagation();
@@ -1707,6 +1731,7 @@ const db = getFirestore(fbApp);
     state.accessGranted = true;
     gateView.style.display = 'none';
     appRoot.style.display = 'flex';
+    startHouseSync(state.myEmail);
     renderSidebar();
     goHome();
   }
@@ -1825,6 +1850,7 @@ const db = getFirestore(fbApp);
       const pass = passInput.value;
       if(email === ADMIN_EMAIL && pass === ADMIN_PASSWORD){
         state.isAdminVerified = true;
+        state.myEmail = ADMIN_EMAIL;
         err.classList.remove('visible');
         enterApp();
       } else {
