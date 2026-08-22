@@ -34,12 +34,12 @@
   /* ---------- Access gate ---------- */
   .gate{position:fixed;inset:0;display:flex;z-index:200;}
   .gate-dots-half{
-    flex:1 1 44%;position:relative;overflow:hidden;
-    background:var(--ink);display:flex;align-items:center;justify-content:center;
+    flex:1 1 40%;position:relative;overflow:hidden;
+    background:var(--canvas);display:flex;align-items:center;justify-content:center;
   }
   .gate-dots-half::before{
     content:'';position:absolute;inset:-40px;
-    background-image:radial-gradient(#5a6350 2px, transparent 2px);
+    background-image:radial-gradient(var(--dot) 2px, transparent 2px);
     background-size:34px 34px;
     animation:gateDotsDrift 26s linear infinite;
   }
@@ -49,20 +49,22 @@
   }
   .gate-dots-mark{
     position:relative;z-index:1;font-family:'Young Serif',serif;font-weight:400;
-    font-size:24px;color:#f3f1e6;text-align:center;padding:0 24px;
+    font-size:24px;color:#fff;text-align:center;padding:0 24px;
   }
   .gate-form-half{
-    flex:1 1 56%;background:var(--paper);overflow-y:auto;
-    display:flex;align-items:center;justify-content:center;padding:44px 24px;
+    flex:1 1 60%;background:var(--paper);overflow-y:auto;
+    display:flex;align-items:center;justify-content:center;padding:44px 36px;
   }
-  .gate-card{max-width:420px;width:100%;}
+  .gate-card{max-width:600px;width:100%;}
+  .gate-row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   @media (max-width: 760px){
     .gate{flex-direction:column;}
     .gate-dots-half{flex:0 0 120px;}
     .gate-dots-mark{font-size:18px;}
     .gate-form-half{flex:1;padding:32px 20px;}
+    .gate-row-2{grid-template-columns:1fr;}
   }
-  .gate-card.gate-admin{max-width:500px;}
+  .gate-card.gate-admin{max-width:600px;}
   .gate-product-mark{font-family:'Young Serif',serif;font-weight:400;font-size:26px;color:var(--accent);margin-bottom:18px;}
   .gate-eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;font-weight:700;}
   .gate-card h1{font-family:'Young Serif',serif;font-weight:400;font-size:25px;margin:0 0 8px;}
@@ -645,6 +647,14 @@ const db = getFirestore(fbApp);
       state.currentRoomId = h.rooms[0] ? h.rooms[0].id : null;
     }
     if(!state.accessGranted) return;
+    // If the user is actively typing anywhere (a card, a title, anything
+    // contenteditable), skip rebuilding the DOM entirely — even our own
+    // debounced save echoes back through this same listener, and a full
+    // rebuild would destroy and recreate the exact field they're typing
+    // into, which is what was making the cursor seem to vanish. Local
+    // state already has the correct data regardless; we just defer the
+    // visual rebuild until they're not mid-edit.
+    if(document.activeElement && document.activeElement.isContentEditable) return;
     renderSidebar();
     if(state.view === 'home') renderHome();
     else if(state.view === 'house' && currentHouse()) renderHouseView();
@@ -674,6 +684,14 @@ const db = getFirestore(fbApp);
     state.myEmail = email;
     const q = query(HOUSES_COL, where('memberEmails', 'array-contains', email));
     onSnapshot(q, async snap => {
+      // While the user is actively typing anywhere, ignore incoming
+      // updates completely (not just the visual rebuild) — otherwise
+      // state.houses gets swapped to fresh objects mid-edit, and whatever
+      // field they're still typing into keeps writing to the old, now
+      // orphaned object that no longer gets saved. Local state already
+      // has the correct data in this case (we're the one who just saved
+      // it), so there's nothing to lose by skipping.
+      if(document.activeElement && document.activeElement.isContentEditable) return;
       applyingRemoteBoard = true;
       let houses = snap.docs.map(d => d.data());
       if(!houses.length && !snap.metadata.fromCache){
@@ -1928,8 +1946,10 @@ const db = getFirestore(fbApp);
       <div class="gate-eyebrow">Invite only</div>
       <h1>Request access to ${escapeHtml(state.communityName)}</h1>
       <p class="sub">This board is exclusive to our community. Tell us a little about you and the admin will review your request.</p>
-      <div class="gate-field"><label>Name</label><input type="text" id="gateName" placeholder="Your name"></div>
-      <div class="gate-field"><label>Email</label><input type="email" id="gateEmail" placeholder="you@email.com"></div>
+      <div class="gate-row-2">
+        <div class="gate-field"><label>Name</label><input type="text" id="gateName" placeholder="Your name"></div>
+        <div class="gate-field"><label>Email</label><input type="email" id="gateEmail" placeholder="you@email.com"></div>
+      </div>
       <div class="gate-field"><label>What brings you here? <span style="font-weight:400;">(optional)</span></label><textarea id="gateNote" placeholder="How you heard about us, what you're working on…"></textarea></div>
       <div class="gate-mcq" id="mcqIdea">
         <label>What best describes your ideas?</label>
@@ -1943,7 +1963,7 @@ const db = getFirestore(fbApp);
         <label>${WEIRD_Q2.question}</label>
         <div class="gate-mcq-options" id="mcqWeird2Opts"></div>
       </div>
-      <button class="gate-submit" id="gateSubmitBtn">Request access</button>
+      <button class="gate-submit" id="gateSubmitBtn" style="max-width:220px;">Request access</button>
     `;
 
     const answers = {ideaType: null, weird1: null, weird2: null};
@@ -2009,9 +2029,11 @@ const db = getFirestore(fbApp);
       <h1>Sign in as admin</h1>
       <p class="sub">This panel is restricted to the community admin.</p>
       <div class="gate-error" id="gateAdminError">That email or password isn't right.</div>
-      <div class="gate-field"><label>Admin email</label><input type="email" id="gateAdminEmail" placeholder="admin@email.com"></div>
-      <div class="gate-field"><label>Password</label><input type="password" id="gateAdminPassword" placeholder="••••••••"></div>
-      <button class="gate-submit" id="gateAdminContinue">Continue</button>
+      <div class="gate-row-2">
+        <div class="gate-field"><label>Admin email</label><input type="email" id="gateAdminEmail" placeholder="admin@email.com"></div>
+        <div class="gate-field"><label>Password</label><input type="password" id="gateAdminPassword" placeholder="••••••••"></div>
+      </div>
+      <button class="gate-submit" id="gateAdminContinue" style="max-width:220px;">Continue</button>
       <div class="gate-footer-link"><a id="gateBackFromAdminLogin">← Back</a></div>
     `;
     const err = document.getElementById('gateAdminError');
