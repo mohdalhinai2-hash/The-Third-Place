@@ -8,11 +8,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --canvas: #ff5a36;
-    --dot: rgba(255,255,255,0.35);
+    --canvas: #f3efe8;
+    --dot: #dad2c2;
     --ink: #14100c;
     --ink-soft: #6b5f52;
-    --paper: #fff3ee;
+    --paper: #f8f5ef;
     --accent: #4b1e9e;
     --accent-soft: #ede4f7;
     --danger: #d6274b;
@@ -23,6 +23,8 @@
     --card-sky: #8fcfe0;
     --card-lilac: #d8b4e8;
     --clay: #ff5a36;
+    --gate-bg: #ff5a36;
+    --gate-dot: rgba(255,255,255,0.35);
     --radius: 10px;
     --shadow: 0 6px 16px -6px rgba(20,16,12,0.28), 0 2px 4px -2px rgba(20,16,12,0.18);
   }
@@ -35,11 +37,11 @@
   .gate{position:fixed;inset:0;display:flex;z-index:200;}
   .gate-dots-half{
     flex:1 1 40%;position:relative;overflow:hidden;
-    background:var(--canvas);display:flex;align-items:center;justify-content:center;
+    background:var(--gate-bg);display:flex;align-items:center;justify-content:center;
   }
   .gate-dots-half::before{
     content:'';position:absolute;inset:-40px;
-    background-image:radial-gradient(var(--dot) 2px, transparent 2px);
+    background-image:radial-gradient(var(--gate-dot) 2px, transparent 2px);
     background-size:34px 34px;
     animation:gateDotsDrift 26s linear infinite;
   }
@@ -312,6 +314,14 @@
   .card-head{height:20px;cursor:grab;position:relative;display:flex;align-items:center;justify-content:flex-end;padding:4px 6px 0 6px;gap:4px;opacity:0;transition:opacity .12s ease;}
   .card:hover .card-head{opacity:1;}
   .card.dragging .card-head{cursor:grabbing;}
+  .resize-handle{
+    position:absolute;right:0;bottom:0;width:18px;height:18px;
+    cursor:nwse-resize;opacity:0;transition:opacity .12s ease;
+    display:flex;align-items:flex-end;justify-content:flex-end;padding:2px;color:var(--ink-soft);
+  }
+  .card:hover .resize-handle{opacity:.65;}
+  .resize-handle:hover{opacity:1 !important;color:var(--accent);}
+  .resize-handle svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;}
   .card-body{padding:14px 14px 12px;}
   .card-tag{font-family:'Caveat',cursive;font-weight:700;font-size:14px;color:var(--ink-soft);display:inline-block;margin-bottom:4px;opacity:.75;}
 
@@ -1258,6 +1268,17 @@ const db = getFirestore(fbApp);
     body.appendChild(buildBody(card, el));
     el.appendChild(body);
 
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'resize-handle';
+    resizeHandle.title = 'Drag to resize';
+    resizeHandle.innerHTML = `<svg viewBox="0 0 14 14"><path d="M12 2 2 12M12 7 7 12M12 12h.01"/></svg>`;
+    resizeHandle.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      pushHistory();
+      resizingCard = {card, el, startX: e.clientX, startWidth: card.w};
+    });
+    el.appendChild(resizeHandle);
+
     el.addEventListener('mousedown', e => onCardMouseDown(e, card, el));
 
     return el;
@@ -1462,7 +1483,10 @@ const db = getFirestore(fbApp);
   // ---------- Dragging cards ----------
   let dragging = null;
   let dragCandidate = null;
+  let resizingCard = null;
   const DRAG_THRESHOLD = 4;
+  const CARD_MIN_W = 160;
+  const CARD_MAX_W = 560;
 
   function onCardMouseDown(e, card, el){
     if(state.arrowMode){
@@ -1470,10 +1494,19 @@ const db = getFirestore(fbApp);
       startArrowDraw(e, {cardId: card.id});
       return;
     }
-    if(e.target.closest('.icon-btn') || e.target.closest('.swatch') || e.target.closest('input')) return;
+    if(e.target.closest('.icon-btn') || e.target.closest('.swatch') || e.target.closest('input') || e.target.closest('.resize-handle')) return;
     dragCandidate = {card, el, startX: e.clientX, startY: e.clientY};
   }
   window.addEventListener('mousemove', e => {
+    if(resizingCard){
+      const zoom = currentRoom().zoom;
+      const newW = Math.min(CARD_MAX_W, Math.max(CARD_MIN_W, resizingCard.startWidth + (e.clientX - resizingCard.startX) / zoom));
+      resizingCard.card.w = newW;
+      resizingCard.el.style.width = newW + 'px';
+      drawOverlay();
+      scheduleSaveBoard();
+      return;
+    }
     if(dragCandidate && !dragging){
       const dx = e.clientX - dragCandidate.startX, dy = e.clientY - dragCandidate.startY;
       if(Math.hypot(dx, dy) > DRAG_THRESHOLD){
@@ -1495,6 +1528,7 @@ const db = getFirestore(fbApp);
     if(dragging){ dragging.el.classList.remove('dragging'); }
     dragging = null;
     dragCandidate = null;
+    resizingCard = null;
   });
 
   // ---------- Bending arrows via their handle ----------
@@ -1924,6 +1958,7 @@ const db = getFirestore(fbApp);
 
   function renderGate(){
     if(state.gateStage === 'signup') renderGateSignup();
+    else if(state.gateStage === 'signin') renderGateSignIn();
     else if(state.gateStage === 'pending') renderGatePending();
     else renderGateAdminLogin();
   }
@@ -1964,6 +1999,7 @@ const db = getFirestore(fbApp);
         <div class="gate-mcq-options" id="mcqWeird2Opts"></div>
       </div>
       <button class="gate-submit" id="gateSubmitBtn" style="max-width:220px;">Request access</button>
+      <div class="gate-footer-link">Already have an account? <a id="gateToSignIn">Sign in</a></div>
     `;
 
     const answers = {ideaType: null, weird1: null, weird2: null};
@@ -2001,6 +2037,53 @@ const db = getFirestore(fbApp);
       renderGate();
       scheduleSaveGate();
       try{ localStorage.setItem('ttp_myEmail', email); } catch(err){}
+    });
+    document.getElementById('gateToSignIn').addEventListener('click', () => {
+      state.gateStage = 'signin';
+      renderGate();
+    });
+  }
+
+  function renderGateSignIn(){
+    gateCard.className = 'gate-card';
+    gateCard.innerHTML = `
+      <div class="gate-product-mark">The Third Place</div>
+      <div class="gate-eyebrow">Welcome back</div>
+      <h1>Sign in to ${escapeHtml(state.communityName)}</h1>
+      <p class="sub">Already a member or waiting on a request? Enter the email you used and we'll take you there.</p>
+      <div class="gate-error" id="gateSignInError">We couldn't find an account with that email.</div>
+      <div class="gate-field"><label>Email</label><input type="email" id="gateSignInEmail" placeholder="you@email.com"></div>
+      <button class="gate-submit" id="gateSignInBtn" style="max-width:220px;">Sign in</button>
+      <div class="gate-footer-link">New here? <a id="gateToSignup">Request access</a></div>
+    `;
+    const err = document.getElementById('gateSignInError');
+    const emailInput = document.getElementById('gateSignInEmail');
+    function attempt(){
+      const email = emailInput.value.trim();
+      if(!email){ emailInput.focus(); return; }
+      const mem = state.members.find(m => m.email.toLowerCase() === email.toLowerCase());
+      const pending = state.pendingRequests.find(r => r.email.toLowerCase() === email.toLowerCase());
+      if(mem){
+        err.classList.remove('visible');
+        state.myRequestId = mem.id;
+        state.myEmail = mem.email;
+        try{ localStorage.setItem('ttp_myEmail', mem.email); } catch(e){}
+        enterApp();
+      } else if(pending){
+        err.classList.remove('visible');
+        state.myRequestId = pending.id;
+        try{ localStorage.setItem('ttp_myEmail', pending.email); } catch(e){}
+        state.gateStage = 'pending';
+        renderGate();
+      } else {
+        err.classList.add('visible');
+      }
+    }
+    document.getElementById('gateSignInBtn').addEventListener('click', attempt);
+    emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') attempt(); });
+    document.getElementById('gateToSignup').addEventListener('click', () => {
+      state.gateStage = 'signup';
+      renderGate();
     });
   }
 
