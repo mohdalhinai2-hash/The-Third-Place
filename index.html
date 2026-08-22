@@ -25,6 +25,7 @@
     --clay: #ff5a36;
     --gate-bg: #ff5a36;
     --gate-dot: rgba(255,255,255,0.35);
+    --sidebar-bg: #d97757;
     --radius: 10px;
     --shadow: 0 6px 16px -6px rgba(20,16,12,0.28), 0 2px 4px -2px rgba(20,16,12,0.18);
   }
@@ -122,7 +123,7 @@
   .gate-admin-corner:hover{opacity:1;color:#948f80;}
 
   /* ---------- Sidebar ---------- */
-  .sidebar{width:222px;flex-shrink:0;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;padding:18px 14px;overflow:hidden;transition:width .16s ease, padding .16s ease;position:relative;}
+  .sidebar{width:222px;flex-shrink:0;background:var(--sidebar-bg);color:var(--paper);display:flex;flex-direction:column;padding:18px 14px;overflow:hidden;transition:width .16s ease, padding .16s ease;position:relative;}
   .sidebar.collapsed{width:0;padding-left:0;padding-right:0;}
   .sidebar-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
   .sidebar-collapse-btn{
@@ -145,23 +146,23 @@
   .show-sidebar-btn.visible{display:flex;}
   .show-sidebar-btn:hover{background:#6a3ac2;transform:scale(1.08);}
   .brand{font-family:'Young Serif',serif;font-weight:400;font-size:22px;letter-spacing:.2px;margin-bottom:2px;color:#fff;cursor:pointer;}
-  .brand small{display:block;font-family:'Inter';font-style:normal;font-weight:500;font-size:11px;color:#948f80;letter-spacing:.3px;margin-top:2px;}
+  .brand small{display:block;font-family:'Inter';font-style:normal;font-weight:500;font-size:11px;color:rgba(255,255,255,.72);letter-spacing:.3px;margin-top:2px;}
   .board-list{margin-top:24px;display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto;}
-  .board-list-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7d7869;margin:0 0 8px 4px;font-weight:600;}
-  .board-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;color:#d8d3c4;border-left:3px solid transparent;transition:background .12s ease;position:relative;}
-  .board-item:hover{background:#2b2823;}
-  .board-item.active{background:#332f28;border-left-color:var(--accent);color:#fff;font-weight:600;}
+  .board-list-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.62);margin:0 0 8px 4px;font-weight:600;}
+  .board-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;color:rgba(255,255,255,.9);border-left:3px solid transparent;transition:background .12s ease;position:relative;}
+  .board-item:hover{background:rgba(0,0,0,.14);}
+  .board-item.active{background:rgba(0,0,0,.24);border-left-color:var(--accent);color:#fff;font-weight:600;}
   .board-icon-btn{width:22px;height:22px;border:none;background:none;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;}
-  .board-icon-btn:hover{background:#3a352c;}
+  .board-icon-btn:hover{background:rgba(0,0,0,.16);}
   .board-icon-btn svg{width:14px;height:14px;display:block;}
   .board-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
-  .board-item .count{font-size:11px;color:#847f70;font-weight:400;}
-  .icon-color-popover{position:absolute;top:34px;left:6px;z-index:80;background:#2b2823;border:1px solid #4a453b;border-radius:9px;padding:7px;display:flex;gap:6px;box-shadow:0 10px 24px rgba(0,0,0,.45);}
+  .board-item .count{font-size:11px;color:rgba(255,255,255,.6);font-weight:400;}
+  .icon-color-popover{position:absolute;top:34px;left:6px;z-index:80;background:#2e2018;border:1px solid #4a3528;border-radius:9px;padding:7px;display:flex;gap:6px;box-shadow:0 10px 24px rgba(0,0,0,.45);}
   .icon-color-popover .swatch{width:15px;height:15px;border-radius:50%;cursor:pointer;border:1px solid rgba(255,255,255,.25);}
   .icon-color-popover .swatch:hover{transform:scale(1.25);}
-  .add-board{margin-top:10px;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:#948f80;border:1px dashed #4a453b;background:none;font-family:inherit;width:100%;text-align:left;}
-  .add-board:hover{color:#fff;border-color:#6b6558;}
-  .sidebar-foot{font-size:11px;color:#6b6558;line-height:1.5;padding-top:14px;margin-top:10px;border-top:1px solid #332f28;}
+  .add-board{margin-top:10px;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.72);border:1px dashed rgba(255,255,255,.35);background:none;font-family:inherit;width:100%;text-align:left;}
+  .add-board:hover{color:#fff;border-color:rgba(255,255,255,.6);}
+  .sidebar-foot{font-size:11px;color:rgba(255,255,255,.58);line-height:1.5;padding-top:14px;margin-top:10px;border-top:1px solid rgba(0,0,0,.18);}
 
   /* ---------- Main / layout ---------- */
   .main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;}
@@ -308,10 +309,10 @@
   .empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#a39c86;pointer-events:none;font-family:'Young Serif',serif;font-size:19px;}
 
   /* ---------- Cards ---------- */
-  .card{position:absolute;border-radius:var(--radius);box-shadow:var(--shadow);padding:0;user-select:none;background:var(--card-cream);cursor:grab;}
+  .card{position:absolute;border-radius:var(--radius);box-shadow:var(--shadow);padding:0;user-select:none;background:var(--card-cream);cursor:grab;display:flex;flex-direction:column;}
   .card.dragging{cursor:grabbing;box-shadow:0 16px 30px -8px rgba(0,0,0,.35);z-index:50;transition:none;}
   .card::before{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #fff, var(--accent) 60%, #33339a 100%);box-shadow:0 2px 3px rgba(0,0,0,.35);}
-  .card-head{height:20px;cursor:grab;position:relative;display:flex;align-items:center;justify-content:flex-end;padding:4px 6px 0 6px;gap:4px;opacity:0;transition:opacity .12s ease;}
+  .card-head{height:20px;flex-shrink:0;cursor:grab;position:relative;display:flex;align-items:center;justify-content:flex-end;padding:4px 6px 0 6px;gap:4px;opacity:0;transition:opacity .12s ease;}
   .card:hover .card-head{opacity:1;}
   .card.dragging .card-head{cursor:grabbing;}
   .resize-handle{
@@ -322,7 +323,18 @@
   .card:hover .resize-handle{opacity:.65;}
   .resize-handle:hover{opacity:1 !important;color:var(--accent);}
   .resize-handle svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;}
-  .card-body{padding:14px 14px 12px;}
+  .rotate-handle{
+    position:absolute;top:-26px;left:50%;transform:translateX(-50%);
+    width:17px;height:17px;border-radius:50%;background:#fff;
+    border:1.5px solid var(--ink-soft);color:var(--ink-soft);
+    cursor:grab;opacity:0;transition:opacity .12s ease;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .card:hover .rotate-handle{opacity:.75;}
+  .rotate-handle:hover{opacity:1 !important;border-color:var(--accent);color:var(--accent);}
+  .rotate-handle:active{cursor:grabbing;}
+  .rotate-handle svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  .card-body{padding:14px 14px 12px;flex:1;overflow-y:auto;min-height:0;}
   .card-tag{font-family:'Caveat',cursive;font-weight:700;font-size:14px;color:var(--ink-soft);display:inline-block;margin-bottom:4px;opacity:.75;}
 
   .swatches{display:flex;gap:5px;margin-right:auto;}
@@ -503,7 +515,7 @@ const db = getFirestore(fbApp);
   const ICON_COLORS = ['#ffd23f','#ffb4a0','#8fcfe0','#d8b4e8','#b79ae0','#4b1e9e','#ff5a36','#e0479a'];
   const DEFAULT_W = {note:220, image:260, checklist:240, headline:260};
   const ATMOSPHERES = [
-    {name:'Parchment', bg:'#ece4d3', dot:'#d9cbae'},
+    {name:'Parchment', bg:'#f3efe8', dot:'#dad2c2'},
     {name:'Meadow',    bg:'#e3ead8', dot:'#bfd1a4'},
     {name:'Blush',     bg:'#f3e1de', dot:'#e2b7ae'},
     {name:'Ocean',     bg:'#dee9ee', dot:'#aecdda'},
@@ -1229,6 +1241,7 @@ const db = getFirestore(fbApp);
     el.style.left = card.x + 'px';
     el.style.top = card.y + 'px';
     el.style.width = card.w + 'px';
+    if(card.h) el.style.height = card.h + 'px';
     el.style.background = COLORS.find(c => c.name === card.color).hex;
     el.style.transform = `rotate(${card.rotation}deg)`;
 
@@ -1268,6 +1281,20 @@ const db = getFirestore(fbApp);
     body.appendChild(buildBody(card, el));
     el.appendChild(body);
 
+    const rotateHandle = document.createElement('div');
+    rotateHandle.className = 'rotate-handle';
+    rotateHandle.title = 'Drag to rotate';
+    rotateHandle.innerHTML = `<svg viewBox="0 0 14 14"><path d="M11.5 4.5A5 5 0 1 0 12.8 8"/><path d="M11.5 1.5v3.3h-3.3"/></svg>`;
+    rotateHandle.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      pushHistory();
+      const r = el.getBoundingClientRect();
+      const center = {x: r.left + r.width/2, y: r.top + r.height/2};
+      const startPointerAngle = Math.atan2(e.clientY - center.y, e.clientX - center.x) * 180 / Math.PI;
+      rotatingCard = {card, el, center, startPointerAngle, startRotation: card.rotation};
+    });
+    el.appendChild(rotateHandle);
+
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'resize-handle';
     resizeHandle.title = 'Drag to resize';
@@ -1275,7 +1302,7 @@ const db = getFirestore(fbApp);
     resizeHandle.addEventListener('mousedown', e => {
       e.stopPropagation();
       pushHistory();
-      resizingCard = {card, el, startX: e.clientX, startWidth: card.w};
+      resizingCard = {card, el, startX: e.clientX, startY: e.clientY, startWidth: card.w, startHeight: el.offsetHeight};
     });
     el.appendChild(resizeHandle);
 
@@ -1484,9 +1511,12 @@ const db = getFirestore(fbApp);
   let dragging = null;
   let dragCandidate = null;
   let resizingCard = null;
+  let rotatingCard = null;
   const DRAG_THRESHOLD = 4;
   const CARD_MIN_W = 160;
   const CARD_MAX_W = 560;
+  const CARD_MIN_H = 90;
+  const CARD_MAX_H = 640;
 
   function onCardMouseDown(e, card, el){
     if(state.arrowMode){
@@ -1494,15 +1524,26 @@ const db = getFirestore(fbApp);
       startArrowDraw(e, {cardId: card.id});
       return;
     }
-    if(e.target.closest('.icon-btn') || e.target.closest('.swatch') || e.target.closest('input') || e.target.closest('.resize-handle')) return;
+    if(e.target.closest('.icon-btn') || e.target.closest('.swatch') || e.target.closest('input') || e.target.closest('.resize-handle') || e.target.closest('.rotate-handle')) return;
     dragCandidate = {card, el, startX: e.clientX, startY: e.clientY};
   }
   window.addEventListener('mousemove', e => {
+    if(rotatingCard){
+      const ang = Math.atan2(e.clientY - rotatingCard.center.y, e.clientX - rotatingCard.center.x) * 180 / Math.PI;
+      const newRot = rotatingCard.startRotation + (ang - rotatingCard.startPointerAngle);
+      rotatingCard.card.rotation = newRot;
+      rotatingCard.el.style.transform = `rotate(${newRot}deg)`;
+      scheduleSaveBoard();
+      return;
+    }
     if(resizingCard){
       const zoom = currentRoom().zoom;
       const newW = Math.min(CARD_MAX_W, Math.max(CARD_MIN_W, resizingCard.startWidth + (e.clientX - resizingCard.startX) / zoom));
+      const newH = Math.min(CARD_MAX_H, Math.max(CARD_MIN_H, resizingCard.startHeight + (e.clientY - resizingCard.startY) / zoom));
       resizingCard.card.w = newW;
+      resizingCard.card.h = newH;
       resizingCard.el.style.width = newW + 'px';
+      resizingCard.el.style.height = newH + 'px';
       drawOverlay();
       scheduleSaveBoard();
       return;
@@ -1529,6 +1570,7 @@ const db = getFirestore(fbApp);
     dragging = null;
     dragCandidate = null;
     resizingCard = null;
+    rotatingCard = null;
   });
 
   // ---------- Bending arrows via their handle ----------
