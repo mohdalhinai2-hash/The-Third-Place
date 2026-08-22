@@ -3,27 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Third Place — a home for loose ideas</title>
+<title>The Third Place — A place to stop an idea</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --canvas: #ece4d3;
-    --dot: #d9cbae;
-    --ink: #211f1b;
-    --ink-soft: #55503f;
-    --paper: #f3eee2;
-    --accent: #5b5fef;
-    --accent-soft: #eceaff;
-    --danger: #c0473a;
-    --card-cream: #fbf7ee;
-    --card-yellow: #f5d673;
-    --card-sage: #b9cba9;
-    --card-blush: #eab0a1;
-    --card-sky: #a9c8d9;
-    --card-lilac: #c9b7e4;
+    --canvas: #efede3;
+    --dot: #d6d0be;
+    --ink: #2e2a22;
+    --ink-soft: #6b6555;
+    --paper: #f3f1e6;
+    --accent: #7c8f6e;
+    --accent-soft: #e7ebe1;
+    --danger: #b5453a;
+    --card-cream: #faf9f2;
+    --card-yellow: #e6c46a;
+    --card-sage: #a9bc9a;
+    --card-blush: #d9a896;
+    --card-sky: #a6bcc0;
+    --card-lilac: #bba8c0;
+    --clay: #b5654a;
     --radius: 10px;
-    --shadow: 0 6px 16px -6px rgba(33,31,27,0.28), 0 2px 4px -2px rgba(33,31,27,0.18);
+    --shadow: 0 6px 16px -6px rgba(46,42,34,0.24), 0 2px 4px -2px rgba(46,42,34,0.16);
   }
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
@@ -31,12 +32,40 @@
   .app{display:flex;height:100vh;width:100vw;}
 
   /* ---------- Access gate ---------- */
-  .gate{position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;z-index:200;padding:24px;background-image:radial-gradient(#332f28 1.4px, transparent 1.4px);background-size:26px 26px;overflow-y:auto;}
-  .gate-card{background:var(--paper);border-radius:16px;padding:38px 36px;max-width:440px;width:100%;box-shadow:0 30px 70px -20px rgba(0,0,0,.55);margin:24px 0;}
+  .gate{position:fixed;inset:0;display:flex;z-index:200;}
+  .gate-dots-half{
+    flex:1 1 44%;position:relative;overflow:hidden;
+    background:var(--ink);display:flex;align-items:center;justify-content:center;
+  }
+  .gate-dots-half::before{
+    content:'';position:absolute;inset:-40px;
+    background-image:radial-gradient(#5a6350 2px, transparent 2px);
+    background-size:34px 34px;
+    animation:gateDotsDrift 26s linear infinite;
+  }
+  @keyframes gateDotsDrift{
+    0%{transform:translate(0,0);}
+    100%{transform:translate(-34px,-34px);}
+  }
+  .gate-dots-mark{
+    position:relative;z-index:1;font-family:'Young Serif',serif;font-weight:400;
+    font-size:24px;color:#f3f1e6;text-align:center;padding:0 24px;
+  }
+  .gate-form-half{
+    flex:1 1 56%;background:var(--paper);overflow-y:auto;
+    display:flex;align-items:center;justify-content:center;padding:44px 24px;
+  }
+  .gate-card{max-width:420px;width:100%;}
+  @media (max-width: 760px){
+    .gate{flex-direction:column;}
+    .gate-dots-half{flex:0 0 120px;}
+    .gate-dots-mark{font-size:18px;}
+    .gate-form-half{flex:1;padding:32px 20px;}
+  }
   .gate-card.gate-admin{max-width:500px;}
-  .gate-product-mark{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:13px;color:var(--accent);margin-bottom:14px;}
+  .gate-product-mark{font-family:'Young Serif',serif;font-weight:400;font-size:13px;color:var(--accent);margin-bottom:14px;}
   .gate-eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px;font-weight:700;}
-  .gate-card h1{font-family:'Fraunces',serif;font-weight:600;font-size:25px;margin:0 0 8px;}
+  .gate-card h1{font-family:'Young Serif',serif;font-weight:400;font-size:25px;margin:0 0 8px;}
   .gate-card p.sub{color:var(--ink-soft);font-size:13.5px;margin:0 0 22px;line-height:1.55;}
   .gate-field{margin-bottom:13px;}
   .gate-field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
@@ -57,10 +86,12 @@
   .gate-pending-icon{width:52px;height:52px;border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
   .gate-pending-icon svg{width:24px;height:24px;fill:var(--accent);}
   .gate-error{background:#fbeae6;border:1px solid #e2b7ae;color:var(--danger);border-radius:8px;padding:9px 11px;font-size:12.5px;margin-bottom:12px;display:none;}
+  .gate-invite-banner{background:var(--accent-soft);border:1px solid #c7d1bd;color:#3f4a37;border-radius:8px;padding:10px 13px;font-size:13px;margin-bottom:16px;line-height:1.5;}
+  .gate-invite-banner strong{font-weight:700;}
   .gate-error.visible{display:block;}
   .gate-admin-name{display:flex;align-items:baseline;gap:8px;margin-bottom:18px;}
   .gate-admin-name span{font-size:12px;color:var(--ink-soft);font-weight:600;flex-shrink:0;}
-  .gate-admin-name input{flex:1;font-family:'Fraunces',serif;font-weight:600;font-size:18px;border:none;background:none;outline:none;border-bottom:1px dashed #cabf9f;padding:2px 0;color:var(--ink);}
+  .gate-admin-name input{flex:1;font-family:'Young Serif',serif;font-weight:400;font-size:18px;border:none;background:none;outline:none;border-bottom:1px dashed #cabf9f;padding:2px 0;color:var(--ink);}
   .gate-section-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700;margin:18px 0 8px;}
   .gate-scroll{max-height:220px;overflow-y:auto;padding-right:2px;}
   .gate-request{background:#fff;border:1px solid #e2dac6;border-radius:10px;padding:12px 14px;margin-bottom:8px;}
@@ -86,14 +117,29 @@
   /* ---------- Sidebar ---------- */
   .sidebar{width:222px;flex-shrink:0;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;padding:18px 14px;overflow:hidden;transition:width .16s ease, padding .16s ease;position:relative;}
   .sidebar.collapsed{width:0;padding-left:0;padding-right:0;}
-  .sidebar-collapse-btn{position:absolute;top:16px;right:-11px;width:22px;height:22px;border-radius:50%;background:var(--ink);border:1px solid #4a453b;color:#d8d3c4;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:5;}
-  .sidebar-collapse-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff;}
-  .show-sidebar-btn{position:absolute;top:16px;left:14px;z-index:20;width:30px;height:30px;border-radius:8px;background:var(--ink);border:1px solid #4a453b;color:#d8d3c4;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:13px;}
+  .sidebar-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .sidebar-collapse-btn{
+    flex-shrink:0;width:30px;height:30px;border-radius:50%;margin-top:1px;
+    background:var(--accent);border:none;color:#fff;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 3px rgba(124,143,110,.22);
+    transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+  }
+  .sidebar-collapse-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+  .sidebar-collapse-btn:hover{background:#8fa280;transform:scale(1.08);box-shadow:0 0 0 5px rgba(124,143,110,.28);}
+  .show-sidebar-btn{
+    position:absolute;top:16px;left:14px;z-index:20;width:34px;height:34px;border-radius:50%;
+    background:var(--accent);border:none;color:#fff;cursor:pointer;
+    display:none;align-items:center;justify-content:center;
+    box-shadow:0 4px 12px -2px rgba(46,42,34,.4), 0 0 0 3px rgba(124,143,110,.22);
+    transition:transform .12s ease, background .12s ease;
+  }
+  .show-sidebar-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
   .show-sidebar-btn.visible{display:flex;}
-  .show-sidebar-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff;}
-  .brand{font-family:'Fraunces',serif;font-weight:600;font-size:22px;letter-spacing:.2px;margin-bottom:2px;color:#fff;cursor:pointer;}
+  .show-sidebar-btn:hover{background:#8fa280;transform:scale(1.08);}
+  .brand{font-family:'Young Serif',serif;font-weight:400;font-size:22px;letter-spacing:.2px;margin-bottom:2px;color:#fff;cursor:pointer;}
   .brand small{display:block;font-family:'Inter';font-style:normal;font-weight:500;font-size:11px;color:#948f80;letter-spacing:.3px;margin-top:2px;}
-  .board-list{margin-top:26px;display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto;}
+  .board-list{margin-top:24px;display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto;}
   .board-list-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7d7869;margin:0 0 8px 4px;font-weight:600;}
   .board-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;color:#d8d3c4;border-left:3px solid transparent;transition:background .12s ease;position:relative;}
   .board-item:hover{background:#2b2823;}
@@ -118,20 +164,30 @@
   /* ---------- Home overview ---------- */
   .home-view{flex:1;overflow-y:auto;padding:44px 48px;background:var(--paper);display:none;}
   .home-view.visible{display:block;}
-  .home-brand-mark{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:15px;color:var(--accent);letter-spacing:.02em;padding-bottom:16px;margin-bottom:24px;border-bottom:1px solid #e2dac6;max-width:520px;}
-  .home-header h1{font-family:'Fraunces',serif;font-weight:600;font-size:30px;margin:0 0 6px;}
+  .home-brand-mark{font-family:'Young Serif',serif;font-weight:400;font-size:15px;color:var(--accent);letter-spacing:.02em;padding-bottom:16px;margin-bottom:24px;border-bottom:1px solid #e2dac6;max-width:520px;}
+  .home-header h1{font-family:'Young Serif',serif;font-weight:400;font-size:30px;margin:0 0 6px;}
   .home-header p{color:var(--ink-soft);font-size:14px;margin:0 0 30px;max-width:520px;}
   .home-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));gap:20px;max-width:1000px;}
 
   /* ---------- Inside Rooms (admin-only home panel) ---------- */
   .inside-rooms{max-width:640px;background:#fff;border:1px solid #e2dac6;border-radius:14px;padding:26px 28px;margin-bottom:34px;}
   .inside-rooms-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:6px;}
-  .inside-rooms-head h2{font-family:'Fraunces',serif;font-weight:600;font-size:19px;margin:0;}
+  .inside-rooms-head h2{font-family:'Young Serif',serif;font-weight:400;font-size:19px;margin:0;}
   .inside-rooms-head .badge{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:3px 9px;border-radius:20px;}
   .inside-rooms > p{color:var(--ink-soft);font-size:13px;margin:0 0 18px;}
   .inside-rooms-cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;}
   @media (max-width: 640px){ .inside-rooms-cols{grid-template-columns:1fr;} }
-  .house-tile{border-radius:14px;overflow:hidden;cursor:pointer;background:#fff;border:1px solid #e2dac6;transition:transform .12s ease, box-shadow .12s ease;}
+  .house-tile{border-radius:14px;overflow:hidden;cursor:pointer;background:#fff;border:1px solid #e2dac6;transition:transform .12s ease, box-shadow .12s ease;position:relative;}
+  .house-tile-delete{
+    position:absolute;top:8px;right:8px;z-index:2;width:26px;height:26px;border-radius:50%;
+    border:none;background:rgba(46,42,34,.55);color:#fff;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;opacity:0;transition:opacity .12s ease, background .12s ease, width .12s ease;font-size:12px;
+  }
+  .house-tile:hover .house-tile-delete{opacity:1;}
+  .house-tile-delete:hover{background:var(--danger);}
+  .house-tile-delete.confirming{
+    opacity:1;width:auto;padding:0 10px;border-radius:13px;background:var(--danger);font-weight:600;font-size:11px;
+  }
   .house-tile:hover{transform:translateY(-3px);box-shadow:0 14px 26px -10px rgba(33,31,27,.28);}
   .house-tile .facade{height:92px;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(currentColor 1.4px, transparent 1.4px);background-size:16px 16px;position:relative;}
   .house-tile .facade svg{width:34px;height:34px;position:relative;z-index:1;}
@@ -148,14 +204,14 @@
   .house-crumb a{color:var(--ink-soft);cursor:pointer;text-decoration:none;}
   .house-crumb a:hover{color:var(--accent);}
   .house-view-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:8px;flex-wrap:wrap;}
-  .house-view-title{font-family:'Fraunces',serif;font-weight:600;font-size:28px;outline:none;border-radius:6px;padding:2px 4px;}
+  .house-view-title{font-family:'Young Serif',serif;font-weight:400;font-size:28px;outline:none;border-radius:6px;padding:2px 4px;}
   .house-view-title:focus{background:#fff;box-shadow:0 0 0 2px var(--accent-soft);}
   .house-view-sub{color:var(--ink-soft);font-size:13.5px;margin:6px 0 26px;}
   .house-view-actions{display:flex;align-items:center;gap:10px;flex-shrink:0;}
 
   /* ---------- Toolbar ---------- */
   .toolbar{background:var(--paper);border-bottom:1px solid #e2dac6;padding:12px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:relative;}
-  .board-title{font-family:'Fraunces',serif;font-weight:600;font-size:20px;outline:none;padding:2px 6px;border-radius:6px;min-width:60px;}
+  .board-title{font-family:'Young Serif',serif;font-weight:400;font-size:20px;outline:none;padding:2px 6px;border-radius:6px;min-width:60px;}
   .board-title:focus{background:#fff;box-shadow:0 0 0 2px var(--accent-soft);}
   .room-crumb{font-size:12px;color:var(--ink-soft);cursor:pointer;white-space:nowrap;}
   .room-crumb:hover{color:var(--accent);}
@@ -211,7 +267,7 @@
   .invite-chip:first-child{margin-left:0;}
 
   .invite-popover{position:absolute;top:52px;z-index:80;background:#fff;border:1px solid #e2dac6;border-radius:10px;padding:14px;box-shadow:0 12px 26px rgba(33,31,27,.22);width:270px;}
-  .invite-popover h4{margin:0 0 4px;font-size:13.5px;font-family:'Fraunces',serif;font-weight:600;}
+  .invite-popover h4{margin:0 0 4px;font-size:13.5px;font-family:'Young Serif',serif;font-weight:400;}
   .invite-popover p{margin:0 0 10px;font-size:12px;color:var(--ink-soft);}
   .invite-row{display:flex;gap:6px;margin-bottom:10px;}
   .invite-row input{flex:1;font-family:inherit;font-size:13px;padding:7px 9px;border-radius:6px;border:1px solid #dcd2b8;outline:none;}
@@ -224,9 +280,9 @@
   .invite-member span.name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .invite-member button{border:none;background:none;color:#b3ac99;cursor:pointer;font-size:13px;}
   .invite-member button:hover{color:var(--danger);}
-  .invite-link-box{margin-top:10px;padding-top:10px;border-top:1px solid #ece4d3;}
+  .invite-link-box{margin-top:10px;padding-top:10px;border-top:1px solid var(--canvas);}
   .invite-link-box label{font-size:11px;color:var(--ink-soft);display:block;margin-bottom:4px;}
-  .invite-link-box input{width:100%;font-size:11.5px;padding:6px 8px;border-radius:6px;border:1px solid #dcd2b8;background:#faf7f0;color:var(--ink-soft);font-family:inherit;}
+  .invite-link-box input{font-size:11.5px;padding:6px 8px;border-radius:6px;border:1px solid #dcd2b8;background:#faf9f2;color:var(--ink-soft);font-family:inherit;}
 
   /* ---------- Canvas ---------- */
   .canvas-wrap{flex:1;position:relative;overflow:hidden;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1.4px, transparent 1.4px);cursor:grab;}
@@ -242,7 +298,7 @@
   .line-group:hover .bend-handle{opacity:1;pointer-events:all;}
   .bend-handle:active{cursor:grabbing;}
 
-  .empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#a39c86;pointer-events:none;font-family:'Fraunces',serif;font-style:italic;font-size:19px;}
+  .empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#a39c86;pointer-events:none;font-family:'Young Serif',serif;font-size:19px;}
 
   /* ---------- Cards ---------- */
   .card{position:absolute;border-radius:var(--radius);box-shadow:var(--shadow);padding:0;user-select:none;background:var(--card-cream);cursor:grab;}
@@ -266,7 +322,7 @@
   .note-text:empty:before{content:attr(data-ph);color:rgba(33,31,27,.4);}
 
   .card.type-headline .card-body{padding:16px 16px 14px;}
-  .headline-text{outline:none;font-family:'Fraunces',serif;font-weight:700;font-size:22px;line-height:1.25;color:var(--ink);min-height:30px;white-space:pre-wrap;word-break:break-word;cursor:text;}
+  .headline-text{outline:none;font-family:'Young Serif',serif;font-weight:400;font-size:22px;line-height:1.25;color:var(--ink);min-height:30px;white-space:pre-wrap;word-break:break-word;cursor:text;}
   .headline-text:empty:before{content:attr(data-ph);color:rgba(33,31,27,.35);}
 
   .card.type-image .card-body{padding:8px;}
@@ -295,14 +351,23 @@
 </head>
 <body>
 <div class="gate" id="gateView">
-  <div class="gate-card" id="gateCard"></div>
+  <div class="gate-dots-half">
+    <div class="gate-dots-mark">The Third Place</div>
+  </div>
+  <div class="gate-form-half">
+    <div class="gate-card" id="gateCard"></div>
+  </div>
   <button class="gate-admin-corner" id="gateAdminCorner">Admin</button>
 </div>
 <div class="app" id="appRoot" style="display:none;">
 
   <aside class="sidebar" id="sidebar">
-    <button class="sidebar-collapse-btn" id="collapseSidebarBtn" title="Hide sidebar">⟨</button>
-    <div class="brand" id="brandHome" title="Back to all houses">The Third Place<small>a place for loose ideas</small></div>
+    <div class="sidebar-header">
+      <div class="brand" id="brandHome" title="Back to all houses">The Third Place<small>A place to stop an idea</small></div>
+      <button class="sidebar-collapse-btn" id="collapseSidebarBtn" title="Hide sidebar" aria-label="Hide sidebar">
+        <svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></svg>
+      </button>
+    </div>
     <div class="board-list-label">Houses</div>
     <div class="board-list" id="boardList"></div>
     <button class="add-board" id="addBoardBtn">+ New house</button>
@@ -310,12 +375,14 @@
   </aside>
 
   <div class="main">
-    <button class="show-sidebar-btn" id="showSidebarBtn" title="Show sidebar">⟩</button>
+    <button class="show-sidebar-btn" id="showSidebarBtn" title="Show sidebar" aria-label="Show sidebar">
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
 
     <div class="home-view" id="homeView">
       <div class="home-brand-mark">The Third Place</div>
       <div class="home-header">
-        <h1>Your houses</h1>
+        <h1 id="homeGreeting">Your houses</h1>
         <p>Pick a house to step inside, or start a new one. Each house holds its own rooms — and each room is its own space to think in.</p>
       </div>
       <div id="insideRoomsSlot"></div>
@@ -326,7 +393,7 @@
       <div class="house-crumb"><a id="crumbHome">All houses</a></div>
       <div class="house-view-header">
         <div>
-          <h1 class="house-view-title" id="houseTitle" contenteditable="true" spellcheck="false"></h1>
+          <h1 class="house-view-title" id="houseTitle" contenteditable="true" spellcheck="false" dir="auto"></h1>
           <div class="house-view-sub">Rooms inside this house. Step into one to start adding ideas.</div>
         </div>
         <div class="house-view-actions">
@@ -343,7 +410,7 @@
           <svg viewBox="0 0 24 24"><path d="M12 3.2 3 11h2.4v9h5.2v-6h2.8v6h5.2v-9H21z"/></svg>
         </button>
         <span class="room-crumb" id="roomCrumb"></span>
-        <h1 class="board-title" id="boardTitle" contenteditable="true" spellcheck="false"></h1>
+        <h1 class="board-title" id="boardTitle" contenteditable="true" spellcheck="false" dir="auto"></h1>
 
         <div class="tool-group">
           <button class="tbtn tbtn-note" id="addNote" title="Add a note">✎ Note</button>
@@ -389,7 +456,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, where
+  getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -411,14 +478,14 @@ const db = getFirestore(fbApp);
   const ADMIN_PASSWORD = '91356713Mm';
 
   const COLORS = [
-    {name:'cream',  hex:'#fbf7ee'},
-    {name:'yellow', hex:'#f5d673'},
-    {name:'sage',   hex:'#b9cba9'},
-    {name:'blush',  hex:'#eab0a1'},
-    {name:'sky',    hex:'#a9c8d9'},
-    {name:'lilac',  hex:'#c9b7e4'},
+    {name:'cream',  hex:'#faf9f2'},
+    {name:'yellow', hex:'#e6c46a'},
+    {name:'sage',   hex:'#a9bc9a'},
+    {name:'blush',  hex:'#d9a896'},
+    {name:'sky',    hex:'#a6bcc0'},
+    {name:'lilac',  hex:'#bba8c0'},
   ];
-  const ICON_COLORS = ['#f5d673','#eab0a1','#a9c8d9','#c9b7e4','#b9cba9','#5b5fef','#e2725b','#7fb069'];
+  const ICON_COLORS = ['#e6c46a','#d9a896','#a6bcc0','#bba8c0','#a9bc9a','#7c8f6e','#b5654a','#8a9c7c'];
   const DEFAULT_W = {note:220, image:260, checklist:240, headline:260};
   const ATMOSPHERES = [
     {name:'Parchment', bg:'#ece4d3', dot:'#d9cbae'},
@@ -469,7 +536,7 @@ const db = getFirestore(fbApp);
     currentRoomId: null,
     view: 'home', // 'home' | 'house' | 'room'
     arrowMode: false,
-    communityName: 'The Night Owls Collective',
+    communityName: 'The Crazy Ones Community',
     gateStage: 'signup', // 'signup' | 'pending' | 'adminLogin'
     pendingRequests: [],
     members: [],
@@ -478,7 +545,20 @@ const db = getFirestore(fbApp);
     accessGranted: false,
     isAdminVerified: false,
     houseSyncStarted: false,
+    inviteContext: null, // {houseId, houseName} if this browser opened a join link
   };
+
+  // Parse ?invite=<houseId>&house=<name> from a shared join link, if present.
+  (function readInviteLink(){
+    try{
+      const params = new URLSearchParams(location.search);
+      const houseId = params.get('invite');
+      const houseName = params.get('house');
+      if(houseId){
+        state.inviteContext = {houseId, houseName: houseName || 'a house'};
+      }
+    } catch(err){ /* ignore malformed URL */ }
+  })();
 
   let openIconPopoverId = null;
   let atmospherePopoverOpen = false;
@@ -770,8 +850,27 @@ const db = getFirestore(fbApp);
     return house.rooms[0] ? house.rooms[0].atmosphere : ATMOSPHERES[0];
   }
 
+  function myDisplayName(){
+    if(state.myEmail === ADMIN_EMAIL) return 'Admin';
+    const mem = state.members.find(m => m.email.toLowerCase() === (state.myEmail||'').toLowerCase());
+    if(mem) return mem.name.split(' ')[0];
+    return null;
+  }
+
+  function timeGreeting(){
+    const h = new Date().getHours();
+    if(h < 5) return 'Still up';
+    if(h < 12) return 'Good morning';
+    if(h < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   function renderHome(){
     renderInsideRooms();
+    const name = myDisplayName();
+    const greetEl = document.getElementById('homeGreeting');
+    if(greetEl) greetEl.textContent = name ? `${timeGreeting()}, ${name}` : 'Your houses';
+
     homeGrid.innerHTML = '';
     state.houses.forEach(h => {
       const facade = houseFacade(h);
@@ -788,6 +887,35 @@ const db = getFirestore(fbApp);
       body.innerHTML = `<div class="tile-name">${escapeHtml(h.name)}</div><div class="tile-count">${roomCount} room${roomCount===1?'':'s'}</div>`;
       tile.appendChild(facadeEl);
       tile.appendChild(body);
+
+      if(h.ownerEmail === state.myEmail){
+        const del = document.createElement('button');
+        del.className = 'house-tile-delete';
+        del.textContent = '✕';
+        del.title = 'Delete this house';
+        let confirming = false;
+        del.addEventListener('click', e => {
+          e.stopPropagation();
+          if(!confirming){
+            confirming = true;
+            del.textContent = 'Delete house?';
+            del.classList.add('confirming');
+            setTimeout(() => {
+              if(confirming){
+                confirming = false;
+                del.textContent = '✕';
+                del.classList.remove('confirming');
+              }
+            }, 3000);
+            return;
+          }
+          state.houses = state.houses.filter(x => x.id !== h.id);
+          renderHome();
+          deleteDoc(doc(db, 'houses', h.id)).catch(err => console.error('Delete failed', err));
+        });
+        tile.appendChild(del);
+      }
+
       tile.addEventListener('click', () => goToHouse(h.id));
       homeGrid.appendChild(tile);
     });
@@ -824,7 +952,7 @@ const db = getFirestore(fbApp);
       facadeEl.className = 'facade';
       facadeEl.style.backgroundColor = r.atmosphere.bg;
       facadeEl.style.color = r.atmosphere.dot;
-      facadeEl.innerHTML = `<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" fill="none" stroke="${r.atmosphere.dot === r.atmosphere.dot ? '#5b5fef' : '#5b5fef'}" stroke-width="1.6"/><path d="M4 10h16" stroke="#5b5fef" stroke-width="1.6"/></svg>`;
+      facadeEl.innerHTML = `<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z" fill="none" stroke="#7c8f6e" stroke-width="1.6"/><path d="M4 10h16" stroke="#7c8f6e" stroke-width="1.6"/></svg>`;
       const body = document.createElement('div');
       body.className = 'tile-body';
       body.innerHTML = `<div class="tile-name">${escapeHtml(r.name)}</div><div class="tile-count">${r.cards.length} item${r.cards.length===1?'':'s'} · ${r.atmosphere.name}</div>`;
@@ -1141,6 +1269,7 @@ const db = getFirestore(fbApp);
       const div = document.createElement('div');
       div.className = 'note-text';
       div.contentEditable = 'true';
+      div.dir = 'auto';
       div.dataset.ph = 'Type an idea…';
       div.textContent = card.content;
       div.addEventListener('mousedown', guardEditableDrag(div));
@@ -1152,6 +1281,7 @@ const db = getFirestore(fbApp);
       const div = document.createElement('div');
       div.className = 'headline-text';
       div.contentEditable = 'true';
+      div.dir = 'auto';
       div.dataset.ph = 'Headline…';
       div.textContent = card.content;
       div.addEventListener('mousedown', guardEditableDrag(div));
@@ -1171,6 +1301,7 @@ const db = getFirestore(fbApp);
       const title = document.createElement('div');
       title.className = 'check-title';
       title.contentEditable = 'true';
+      title.dir = 'auto';
       title.textContent = card.title;
       title.addEventListener('mousedown', guardEditableDrag(title));
       title.addEventListener('input', () => { card.title = title.textContent; scheduleSaveBoard(); });
@@ -1184,6 +1315,7 @@ const db = getFirestore(fbApp);
       const add = document.createElement('div');
       add.className = 'check-add';
       add.contentEditable = 'true';
+      add.dir = 'auto';
       add.addEventListener('mousedown', guardEditableDrag(add));
       add.addEventListener('keydown', e => {
         if(e.key === 'Enter'){
@@ -1288,6 +1420,7 @@ const db = getFirestore(fbApp);
     const text = document.createElement('div');
     text.className = 'ci-text';
     text.contentEditable = 'true';
+    text.dir = 'auto';
     text.textContent = item.text;
     text.addEventListener('mousedown', guardEditableDrag(text));
     text.addEventListener('input', () => { item.text = text.textContent; scheduleSaveBoard(); });
@@ -1502,7 +1635,7 @@ const db = getFirestore(fbApp);
     defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
     defs.innerHTML = `
       <marker id="arrowhead" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
-        <path d="M1.5,1.5 L10,6 L1.5,10.5" fill="none" stroke="#5b5fef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M1.5,1.5 L10,6 L1.5,10.5" fill="none" stroke="#7c8f6e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </marker>`;
     connLayer.appendChild(defs);
   }
@@ -1705,6 +1838,39 @@ const db = getFirestore(fbApp);
     emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') submitInvite(); });
     row.appendChild(emailInput); row.appendChild(addBtn);
     pop.appendChild(row);
+
+    const linkBox = document.createElement('div');
+    linkBox.className = 'invite-link-box';
+    linkBox.innerHTML = `<label>Or copy this link and send it yourself</label>`;
+    const linkRow = document.createElement('div');
+    linkRow.className = 'invite-row';
+    const linkInput = document.createElement('input');
+    linkInput.readOnly = true;
+    const joinUrl = new URL(location.href);
+    joinUrl.search = '';
+    joinUrl.searchParams.set('invite', h.id);
+    joinUrl.searchParams.set('house', h.name);
+    linkInput.value = joinUrl.toString();
+    linkInput.addEventListener('click', () => linkInput.select());
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    copyBtn.addEventListener('click', () => {
+      linkInput.select();
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(linkInput.value).then(() => {
+          copyBtn.textContent = 'Copied';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        }).catch(() => {});
+      }
+    });
+    linkRow.appendChild(linkInput); linkRow.appendChild(copyBtn);
+    linkBox.appendChild(linkRow);
+    pop.appendChild(linkBox);
+
+    const linkNote = document.createElement('p');
+    linkNote.style.marginTop = '8px';
+    linkNote.textContent = 'This just opens the sign-up page with a nice "you\'re invited" message — they still need to sign up with the email you added above.';
+    pop.appendChild(linkNote);
   }
   houseInviteBtn.addEventListener('click', e => {
     e.stopPropagation();
@@ -1751,8 +1917,12 @@ const db = getFirestore(fbApp);
 
   function renderGateSignup(){
     gateCard.className = 'gate-card';
+    const inviteBanner = state.inviteContext
+      ? `<div class="gate-invite-banner">You've been invited to join <strong>${escapeHtml(state.inviteContext.houseName)}</strong> — sign up below to get in.</div>`
+      : '';
     gateCard.innerHTML = `
       <div class="gate-product-mark">The Third Place</div>
+      ${inviteBanner}
       <div class="gate-eyebrow">Invite only</div>
       <h1>Request access to ${escapeHtml(state.communityName)}</h1>
       <p class="sub">This board is exclusive to our community. Tell us a little about you and the admin will review your request.</p>
