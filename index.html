@@ -205,16 +205,21 @@
   }
   .rail-icon{
     width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
-    font-size:16px;border:1px solid transparent;transition:transform .1s ease;
+    font-size:16px;border:1px solid transparent;transition:transform .1s ease;position:relative;
   }
   .rail-icon-text{font-weight:700;font-size:15px;}
   .rail-label{font-size:9px;color:var(--ink-soft);font-weight:600;}
   .rail-btn:hover .rail-icon{transform:translateY(-1px);}
-  .rail-btn.active .rail-icon{box-shadow:0 0 0 2px var(--accent);}
+  .rail-icon::after{
+    content:'';position:absolute;top:-3px;left:-3px;width:9px;height:9px;border-radius:50%;
+    background:var(--accent);border:1.5px solid var(--surface,#fff);display:none;
+  }
+  .rail-btn.active .rail-icon::after{display:block;}
   .rail-note .rail-icon{background:#fdf3d0;border-color:#e9cf7d;color:#6b5511;}
   .rail-image .rail-icon{background:#dcebf1;border-color:#9fc2d6;color:#204a5c;}
   .rail-check .rail-icon{background:#dff3e8;border-color:#7fcfa0;color:#0f6b41;}
   .rail-headline .rail-icon{background:#f0e6f5;border-color:#c9a8dd;color:#5c2e70;}
+  .rail-calendar .rail-icon{background:#ffe3d6;border-color:#ffae86;color:#7a2e12;}
   .rail-arrow .rail-icon{background:#e4e4fb;border-color:#b3b3f2;color:#33339a;}
   .rail-arrow.active .rail-icon{background:var(--accent);border-color:var(--accent);color:#fff;}
   .board-view.hidden{display:none;}
@@ -429,6 +434,31 @@
   .check-add{font-size:13px;color:#9a9483;cursor:text;outline:none;padding-top:2px;}
   .check-add:empty:before{content:'+ add item';}
 
+  .ci-due-btn{width:16px;height:16px;border:none;background:none;cursor:pointer;font-size:11px;opacity:0;flex-shrink:0;padding:0;display:flex;align-items:center;justify-content:center;}
+  .check-item:hover .ci-due-btn{opacity:.6;}
+  .ci-due-btn:hover{opacity:1 !important;}
+  .ci-due-pill{font-size:9.5px;font-weight:600;background:#e4e4fb;color:#33339a;padding:2px 7px;border-radius:10px;flex-shrink:0;white-space:nowrap;cursor:pointer;}
+  .ci-due-input{font-size:10px;border:1px solid #ddd2c4;border-radius:5px;padding:1px 3px;flex-shrink:0;font-family:inherit;}
+
+  .calendar-card-body{font-size:11px;}
+  .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .cal-nav{border:none;background:none;cursor:pointer;font-size:13px;color:var(--card-ink-soft);padding:2px 6px;}
+  .cal-nav:hover{color:var(--accent);}
+  .cal-month-label{font-weight:700;font-size:12px;color:var(--card-ink);}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;}
+  .cal-dow{font-size:9px;color:var(--card-ink-soft);font-weight:600;padding-bottom:3px;}
+  .cal-day{font-size:10.5px;color:var(--card-ink);padding:4px 0;border-radius:6px;position:relative;cursor:default;}
+  .cal-day.has-due{cursor:pointer;font-weight:700;}
+  .cal-day.has-due:hover{background:rgba(75,30,158,.08);}
+  .cal-day.has-due::after{content:'';position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--accent);}
+  .cal-day.today{background:var(--accent);color:#fff;}
+  .cal-day.today::after{background:#fff;}
+  .cal-day-panel{margin-top:10px;padding-top:8px;border-top:1px solid #ece4d3;}
+  .cal-day-panel-title{font-size:10px;font-weight:700;color:var(--card-ink-soft);margin-bottom:6px;}
+  .cal-day-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--card-ink);margin-bottom:5px;cursor:pointer;}
+  .cal-day-item input{accent-color:var(--accent);}
+  .cal-empty{font-size:10.5px;color:var(--card-ink-soft);font-style:italic;text-align:center;padding:10px 0 2px;}
+
   .card.dimmed{opacity:.22;}
   ::selection{background:var(--accent-soft);}
 </style>
@@ -540,6 +570,9 @@
           <button class="rail-btn rail-headline" id="addHeadline" title="Add a headline">
             <span class="rail-icon rail-icon-text">H</span><span class="rail-label">Headline</span>
           </button>
+          <button class="rail-btn rail-calendar" id="addCalendar" title="Add a calendar">
+            <span class="rail-icon">📅</span><span class="rail-label">Calendar</span>
+          </button>
           <button class="rail-btn rail-arrow" id="arrowBtn" title="Draw an arrow — drag from a point or a card to another">
             <span class="rail-icon">↗</span><span class="rail-label">Arrow</span>
           </button>
@@ -591,7 +624,7 @@ const db = getFirestore(fbApp);
     {name:'lilac',  hex:'#d8b4e8'},
   ];
   const ICON_COLORS = ['#ffd23f','#ffb4a0','#8fcfe0','#d8b4e8','#b79ae0','#4b1e9e','#ff5a36','#e0479a'];
-  const DEFAULT_W = {note:220, image:260, checklist:240, headline:260};
+  const DEFAULT_W = {note:220, image:260, checklist:240, headline:260, calendar:260};
   const ATMOSPHERES = [
     {name:'Parchment', bg:'#f3efe8', dot:'#dad2c2'},
     {name:'Meadow',    bg:'#e3ead8', dot:'#bfd1a4'},
@@ -1329,6 +1362,12 @@ const db = getFirestore(fbApp);
     if(type === 'headline') base.content = '';
     if(type === 'image') base.url = '';
     if(type === 'checklist'){ base.title = 'Checklist'; base.items = []; }
+    if(type === 'calendar'){
+      const now = new Date();
+      base.viewYear = now.getFullYear();
+      base.viewMonth = now.getMonth();
+      base.openDay = null;
+    }
 
     r.cards.push(base);
     const el = buildCardEl(base);
@@ -1347,6 +1386,7 @@ const db = getFirestore(fbApp);
   document.getElementById('addImage').addEventListener('click', () => addCard('image'));
   document.getElementById('addCheck').addEventListener('click', () => addCard('checklist'));
   document.getElementById('addHeadline').addEventListener('click', () => addCard('headline'));
+  document.getElementById('addCalendar').addEventListener('click', () => addCard('calendar'));
 
   function deleteCard(id){
     pushHistory();
@@ -1600,7 +1640,142 @@ const db = getFirestore(fbApp);
       frag.appendChild(add);
     }
 
+    if(card.type === 'calendar'){
+      frag.appendChild(buildCalendarBody(card));
+    }
+
     return frag;
+  }
+
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function collectDueItems(){
+    const map = {};
+    currentRoom().cards.forEach(c => {
+      if(c.type !== 'checklist') return;
+      c.items.forEach(it => {
+        if(it.due){
+          (map[it.due] = map[it.due] || []).push({cardId: c.id, itemId: it.id, text: it.text, done: it.done});
+        }
+      });
+    });
+    return map;
+  }
+
+  function refreshCardById(id){
+    const c = findCard(id);
+    const el = canvas.querySelector(`[data-id="${id}"]`);
+    if(!c || !el) return;
+    el.replaceWith(buildCardEl(c));
+  }
+
+  function refreshAllCalendarCards(){
+    currentRoom().cards.forEach(c => { if(c.type === 'calendar') refreshCardById(c.id); });
+  }
+
+  function buildCalendarBody(card){
+    const wrap = document.createElement('div');
+    wrap.className = 'calendar-card-body';
+
+    const header = document.createElement('div');
+    header.className = 'cal-header';
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'cal-nav'; prevBtn.textContent = '‹'; prevBtn.type = 'button';
+    const label = document.createElement('span');
+    label.className = 'cal-month-label';
+    label.textContent = `${MONTH_NAMES[card.viewMonth]} ${card.viewYear}`;
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'cal-nav'; nextBtn.textContent = '›'; nextBtn.type = 'button';
+    [prevBtn, nextBtn].forEach(b => b.addEventListener('mousedown', e => e.stopPropagation()));
+    prevBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      card.viewMonth--; if(card.viewMonth < 0){ card.viewMonth = 11; card.viewYear--; }
+      scheduleSaveBoard();
+      refreshCardById(card.id);
+    });
+    nextBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      card.viewMonth++; if(card.viewMonth > 11){ card.viewMonth = 0; card.viewYear++; }
+      scheduleSaveBoard();
+      refreshCardById(card.id);
+    });
+    header.appendChild(prevBtn); header.appendChild(label); header.appendChild(nextBtn);
+    wrap.appendChild(header);
+
+    const dueMap = collectDueItems();
+    const grid = document.createElement('div');
+    grid.className = 'cal-grid';
+    ['S','M','T','W','T','F','S'].forEach(d => {
+      const el = document.createElement('div');
+      el.className = 'cal-dow';
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+
+    const firstDow = new Date(card.viewYear, card.viewMonth, 1).getDay();
+    const daysInMonth = new Date(card.viewYear, card.viewMonth + 1, 0).getDate();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    for(let i = 0; i < firstDow; i++) grid.appendChild(document.createElement('div'));
+    for(let d = 1; d <= daysInMonth; d++){
+      const dateStr = `${card.viewYear}-${String(card.viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const cell = document.createElement('div');
+      cell.className = 'cal-day' + (dateStr === todayStr ? ' today' : '') + (dueMap[dateStr] ? ' has-due' : '');
+      cell.textContent = d;
+      if(dueMap[dateStr]){
+        cell.addEventListener('mousedown', e => e.stopPropagation());
+        cell.addEventListener('click', e => {
+          e.stopPropagation();
+          card.openDay = card.openDay === dateStr ? null : dateStr;
+          scheduleSaveBoard();
+          refreshCardById(card.id);
+        });
+      }
+      grid.appendChild(cell);
+    }
+    wrap.appendChild(grid);
+
+    if(card.openDay){
+      const panel = document.createElement('div');
+      panel.className = 'cal-day-panel';
+      const title = document.createElement('div');
+      title.className = 'cal-day-panel-title';
+      const [, m, d] = card.openDay.split('-');
+      title.textContent = `${MONTH_NAMES[parseInt(m,10)-1]} ${parseInt(d,10)}`;
+      panel.appendChild(title);
+      const entries = dueMap[card.openDay] || [];
+      if(!entries.length){
+        const empty = document.createElement('div');
+        empty.className = 'cal-empty';
+        empty.textContent = 'Nothing due this day.';
+        panel.appendChild(empty);
+      }
+      entries.forEach(entry => {
+        const row = document.createElement('label');
+        row.className = 'cal-day-item';
+        row.addEventListener('mousedown', e => e.stopPropagation());
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = entry.done;
+        const span = document.createElement('span');
+        span.textContent = entry.text;
+        span.style.textDecoration = entry.done ? 'line-through' : 'none';
+        cb.addEventListener('change', () => {
+          pushHistory();
+          const parentCard = findCard(entry.cardId);
+          const item = parentCard.items.find(i => i.id === entry.itemId);
+          item.done = cb.checked;
+          span.style.textDecoration = item.done ? 'line-through' : 'none';
+          scheduleSaveBoard();
+          refreshCardById(entry.cardId);
+        });
+        row.appendChild(cb);
+        row.appendChild(span);
+        panel.appendChild(row);
+      });
+      wrap.appendChild(panel);
+    }
+
+    return wrap;
   }
 
   function imageInputBlock(card, cardEl){
@@ -1683,6 +1858,8 @@ const db = getFirestore(fbApp);
       pushHistory();
       item.done = cb.checked;
       row.classList.toggle('done', item.done);
+      scheduleSaveBoard();
+      refreshAllCalendarCards();
     });
     const text = document.createElement('div');
     text.className = 'ci-text';
@@ -1691,6 +1868,53 @@ const db = getFirestore(fbApp);
     text.textContent = item.text;
     text.addEventListener('mousedown', guardEditableDrag(text));
     text.addEventListener('input', () => { item.text = text.textContent; scheduleSaveBoard(); });
+
+    const dueBtn = document.createElement('button');
+    dueBtn.type = 'button';
+    dueBtn.className = 'ci-due-btn';
+    dueBtn.title = 'Set a due date';
+    dueBtn.textContent = '📅';
+    dueBtn.addEventListener('mousedown', e => e.stopPropagation());
+
+    const duePill = document.createElement('span');
+    duePill.className = 'ci-due-pill';
+    duePill.title = 'Click to change, or clear the date';
+    function formatDue(dateStr){
+      const [y, m, d] = dateStr.split('-');
+      return `${MONTH_NAMES[parseInt(m,10)-1].slice(0,3)} ${parseInt(d,10)}`;
+    }
+    function showDateInput(){
+      const input = document.createElement('input');
+      input.type = 'date';
+      input.className = 'ci-due-input';
+      input.value = item.due || '';
+      input.addEventListener('mousedown', e => e.stopPropagation());
+      input.addEventListener('click', e => e.stopPropagation());
+      input.addEventListener('change', () => {
+        pushHistory();
+        item.due = input.value || undefined;
+        scheduleSaveBoard();
+        refreshAllCalendarCards();
+        input.replaceWith(renderDueDisplay());
+      });
+      input.addEventListener('blur', () => { input.replaceWith(renderDueDisplay()); });
+      return input;
+    }
+    function renderDueDisplay(){
+      if(item.due){
+        duePill.textContent = formatDue(item.due);
+        duePill.style.display = 'inline-block';
+        dueBtn.style.display = 'none';
+        return duePill;
+      } else {
+        dueBtn.style.display = 'flex';
+        duePill.style.display = 'none';
+        return dueBtn;
+      }
+    }
+    dueBtn.addEventListener('click', e => { e.stopPropagation(); const inp = showDateInput(); dueBtn.replaceWith(inp); inp.focus(); });
+    duePill.addEventListener('click', e => { e.stopPropagation(); const inp = showDateInput(); duePill.replaceWith(inp); inp.focus(); });
+
     const del = document.createElement('button');
     del.className = 'icon-btn';
     del.innerHTML = svgX();
@@ -1699,10 +1923,13 @@ const db = getFirestore(fbApp);
       pushHistory();
       card.items = card.items.filter(i => i.id !== item.id);
       row.remove();
+      refreshAllCalendarCards();
     });
     row.appendChild(cb);
     row.appendChild(text);
+    row.appendChild(item.due ? duePill : dueBtn);
     row.appendChild(del);
+    if(item.due) duePill.textContent = formatDue(item.due);
     return row;
   }
 
