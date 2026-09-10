@@ -22,12 +22,29 @@
     --card-blush: #ffb4a0;
     --card-sky: #8fcfe0;
     --card-lilac: #d8b4e8;
+    --card-ink: #14100c;
+    --card-ink-soft: #6b5f52;
     --clay: #ff5a36;
     --gate-bg: #ff5a36;
     --gate-dot: rgba(255,255,255,0.35);
     --sidebar-bg: #d97757;
+    --surface: #ffffff;
+    --surface-border: #e2dac6;
     --radius: 10px;
     --shadow: 0 6px 16px -6px rgba(20,16,12,0.28), 0 2px 4px -2px rgba(20,16,12,0.18);
+  }
+  [data-theme="dark"]{
+    --canvas: #1d1b18;
+    --dot: #322e28;
+    --ink: #f0ece4;
+    --ink-soft: #b3aa9c;
+    --paper: #201e1a;
+    --accent: #9575e8;
+    --accent-soft: #352a4d;
+    --danger: #ff7b7b;
+    --surface: #2a2723;
+    --surface-border: #45403880;
+    --shadow: 0 6px 16px -6px rgba(0,0,0,0.5), 0 2px 4px -2px rgba(0,0,0,0.35);
   }
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
@@ -74,7 +91,7 @@
   .gate-card p.sub{color:var(--ink-soft);font-size:13.5px;margin:0 0 22px;line-height:1.55;}
   .gate-field{margin-bottom:13px;}
   .gate-field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
-  .gate-field input, .gate-field textarea{width:100%;font-family:inherit;font-size:14px;padding:10px 12px;border-radius:8px;border:1px solid #e2dac6;outline:none;background:#fff;}
+  .gate-field input, .gate-field textarea{width:100%;font-family:inherit;font-size:14px;padding:10px 12px;border-radius:8px;border:1px solid var(--surface-border,#e2dac6);outline:none;background:var(--surface,#fff);color:var(--ink);}
   .gate-field input:focus, .gate-field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
   .gate-field textarea{resize:vertical;min-height:58px;font-family:inherit;}
   .gate-mcq{margin-bottom:16px;}
@@ -136,7 +153,7 @@
   .sidebar-collapse-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
   .sidebar-collapse-btn:hover{background:#6a3ac2;transform:scale(1.08);box-shadow:0 0 0 5px rgba(75,30,158,.32);}
   .show-sidebar-btn{
-    position:absolute;top:16px;left:14px;z-index:20;width:34px;height:34px;border-radius:50%;
+    position:absolute;top:50%;left:10px;transform:translateY(-50%);z-index:20;width:34px;height:34px;border-radius:50%;
     background:var(--accent);border:none;color:#fff;cursor:pointer;
     display:none;align-items:center;justify-content:center;
     box-shadow:0 4px 12px -2px rgba(46,42,34,.4), 0 0 0 3px rgba(75,30,158,.25);
@@ -144,7 +161,7 @@
   }
   .show-sidebar-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
   .show-sidebar-btn.visible{display:flex;}
-  .show-sidebar-btn:hover{background:#6a3ac2;transform:scale(1.08);}
+  .show-sidebar-btn:hover{background:#6a3ac2;transform:translateY(-50%) scale(1.08);}
   .brand{font-family:'Young Serif',serif;font-weight:400;font-size:22px;letter-spacing:.2px;margin-bottom:2px;color:#fff;cursor:pointer;}
   .brand small{display:block;font-family:'Inter';font-style:normal;font-weight:500;font-size:11px;color:rgba(255,255,255,.72);letter-spacing:.3px;margin-top:2px;}
   .board-list{margin-top:24px;display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto;}
@@ -162,11 +179,44 @@
   .icon-color-popover .swatch:hover{transform:scale(1.25);}
   .add-board{margin-top:10px;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.72);border:1px dashed rgba(255,255,255,.35);background:none;font-family:inherit;width:100%;text-align:left;}
   .add-board:hover{color:#fff;border-color:rgba(255,255,255,.6);}
-  .sidebar-foot{font-size:11px;color:rgba(255,255,255,.58);line-height:1.5;padding-top:14px;margin-top:10px;border-top:1px solid rgba(0,0,0,.18);}
+  .sidebar-nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-top:18px;border-radius:8px;cursor:pointer;font-size:13.5px;font-weight:600;color:#fff;background:rgba(0,0,0,.14);transition:background .12s ease;}
+  .sidebar-nav-item:hover{background:rgba(0,0,0,.22);}
+  .sidebar-nav-item svg{width:14px;height:14px;fill:#fff;flex-shrink:0;}
+  .sidebar-foot{padding-top:14px;margin-top:10px;border-top:1px solid rgba(0,0,0,.18);}
+  .sidebar-foot-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:rgba(255,255,255,.85);padding:4px 2px;margin-bottom:2px;}
+  .theme-toggle{width:32px;height:18px;border-radius:10px;background:rgba(0,0,0,.28);border:none;cursor:pointer;position:relative;padding:0;flex-shrink:0;}
+  .theme-toggle-knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s ease;display:block;}
+  .theme-toggle[aria-checked="true"]{background:var(--accent);}
+  .theme-toggle[aria-checked="true"] .theme-toggle-knob{transform:translateX(14px);}
+  .sidebar-foot-link{font-size:12.5px;color:rgba(255,255,255,.85);padding:6px 2px;cursor:pointer;font-weight:600;}
+  .sidebar-foot-link:hover{color:#fff;}
 
   /* ---------- Main / layout ---------- */
   .main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;}
   .board-view{flex:1;display:flex;flex-direction:column;min-height:0;}
+  .board-body{flex:1;display:flex;min-height:0;}
+  .tool-rail{
+    flex-shrink:0;width:66px;background:var(--surface, #faf8f3);border-right:1px solid var(--surface-border, #e6e1d5);
+    padding:14px 6px;display:flex;flex-direction:column;align-items:center;gap:12px;overflow-y:auto;
+  }
+  .rail-btn{
+    display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;
+    cursor:pointer;font-family:inherit;padding:2px;width:100%;
+  }
+  .rail-icon{
+    width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-size:16px;border:1px solid transparent;transition:transform .1s ease;
+  }
+  .rail-icon-text{font-weight:700;font-size:15px;}
+  .rail-label{font-size:9px;color:var(--ink-soft);font-weight:600;}
+  .rail-btn:hover .rail-icon{transform:translateY(-1px);}
+  .rail-btn.active .rail-icon{box-shadow:0 0 0 2px var(--accent);}
+  .rail-note .rail-icon{background:#fdf3d0;border-color:#e9cf7d;color:#6b5511;}
+  .rail-image .rail-icon{background:#dcebf1;border-color:#9fc2d6;color:#204a5c;}
+  .rail-check .rail-icon{background:#dff3e8;border-color:#7fcfa0;color:#0f6b41;}
+  .rail-headline .rail-icon{background:#f0e6f5;border-color:#c9a8dd;color:#5c2e70;}
+  .rail-arrow .rail-icon{background:#e4e4fb;border-color:#b3b3f2;color:#33339a;}
+  .rail-arrow.active .rail-icon{background:var(--accent);border-color:var(--accent);color:#fff;}
   .board-view.hidden{display:none;}
 
   /* ---------- Home overview ---------- */
@@ -185,7 +235,7 @@
   .inside-rooms > p{color:var(--ink-soft);font-size:13px;margin:0 0 18px;}
   .inside-rooms-cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;}
   @media (max-width: 640px){ .inside-rooms-cols{grid-template-columns:1fr;} }
-  .house-tile{border-radius:14px;overflow:hidden;cursor:pointer;background:#fff;border:1px solid #e2dac6;transition:transform .12s ease, box-shadow .12s ease;position:relative;}
+  .house-tile{border-radius:14px;overflow:hidden;cursor:pointer;background:var(--surface,#fff);border:1px solid var(--surface-border,#e2dac6);transition:transform .12s ease, box-shadow .12s ease;position:relative;}
   .house-tile-delete{
     position:absolute;top:8px;right:8px;z-index:2;width:26px;height:26px;border-radius:50%;
     border:none;background:rgba(46,42,34,.55);color:#fff;display:flex;align-items:center;justify-content:center;
@@ -226,7 +276,7 @@
   .toolbar .spacer{flex:1;}
   .tool-group{display:flex;gap:6px;align-items:center;}
 
-  .tbtn{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e2dac6;color:var(--ink);padding:7px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s ease;white-space:nowrap;}
+  .tbtn{display:flex;align-items:center;gap:6px;background:var(--surface,#fff);border:1px solid var(--surface-border,#e2dac6);color:var(--ink);padding:7px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s ease;white-space:nowrap;}
   .tbtn:hover{border-color:var(--accent);color:var(--accent);}
   .tbtn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
   .tbtn svg{width:14px;height:14px;flex-shrink:0;}
@@ -245,27 +295,27 @@
   .tbtn-room{background:#ffe3d6;border-color:#ffae86;color:#7a2e12;}
   .tbtn-room:hover{border-color:#ff8a56;color:#5c1e0a;}
 
-  .home-btn{border:1px solid #e2dac6;background:#fff;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  .home-btn{border:1px solid var(--surface-border,#e2dac6);background:var(--surface,#fff);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
   .home-btn:hover{border-color:var(--accent);}
   .home-btn svg{width:15px;height:15px;fill:var(--ink);}
   .home-btn:hover svg{fill:var(--accent);}
 
-  .atmosphere-popover{position:absolute;top:52px;z-index:80;background:#fff;border:1px solid #e2dac6;border-radius:10px;padding:10px;box-shadow:0 12px 26px rgba(33,31,27,.22);display:flex;flex-direction:column;gap:6px;min-width:170px;}
+  .atmosphere-popover{position:absolute;top:52px;z-index:80;background:var(--surface,#fff);border:1px solid var(--surface-border,#e2dac6);border-radius:10px;padding:10px;box-shadow:0 12px 26px rgba(33,31,27,.22);display:flex;flex-direction:column;gap:6px;min-width:170px;}
   .atmosphere-opt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--ink);}
   .atmosphere-opt:hover{background:var(--accent-soft);}
   .atmosphere-opt .swatch-pair{display:flex;width:20px;height:20px;border-radius:6px;overflow:hidden;flex-shrink:0;border:1px solid rgba(0,0,0,.1);}
   .atmosphere-opt .swatch-pair span{flex:1;}
 
-  .search-box{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e2dac6;border-radius:8px;padding:6px 10px;min-width:170px;}
+  .search-box{display:flex;align-items:center;gap:6px;background:var(--surface,#fff);border:1px solid var(--surface-border,#e2dac6);border-radius:8px;padding:6px 10px;min-width:170px;}
   .search-box input{border:none;outline:none;font-family:inherit;font-size:13px;width:100%;background:none;color:var(--ink);}
   .search-box svg{width:14px;height:14px;color:#8a8371;flex-shrink:0;}
 
-  .zoom-group{display:flex;align-items:center;gap:2px;background:#fff;border:1px solid #e2dac6;border-radius:8px;overflow:hidden;}
+  .zoom-group{display:flex;align-items:center;gap:2px;background:var(--surface,#fff);border:1px solid var(--surface-border,#e2dac6);border-radius:8px;overflow:hidden;}
   .zoom-group button{border:none;background:none;width:28px;height:30px;cursor:pointer;font-size:15px;color:var(--ink);font-family:inherit;}
   .zoom-group button:hover{background:var(--accent-soft);color:var(--accent);}
   .zoom-label{font-size:12px;color:var(--ink-soft);width:42px;text-align:center;font-variant-numeric:tabular-nums;}
 
-  .history-group{display:flex;align-items:center;gap:2px;background:#fff;border:1px solid #e2dac6;border-radius:8px;overflow:hidden;}
+  .history-group{display:flex;align-items:center;gap:2px;background:var(--surface,#fff);border:1px solid var(--surface-border,#e2dac6);border-radius:8px;overflow:hidden;}
   .history-group button{border:none;background:none;width:30px;height:30px;cursor:pointer;font-size:15px;color:var(--ink);font-family:inherit;}
   .history-group button:hover:not(:disabled){background:var(--accent-soft);color:var(--accent);}
   .history-group button:disabled{color:#c9c2b0;cursor:default;}
@@ -274,7 +324,7 @@
   .invite-chip{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#fff;border:2px solid var(--paper);margin-left:-7px;flex-shrink:0;}
   .invite-chip:first-child{margin-left:0;}
 
-  .invite-popover{position:absolute;top:52px;z-index:80;background:#fff;border:1px solid #e2dac6;border-radius:10px;padding:14px;box-shadow:0 12px 26px rgba(33,31,27,.22);width:270px;}
+  .invite-popover{position:absolute;top:52px;z-index:80;background:var(--surface,#fff);border:1px solid var(--surface-border,#e2dac6);border-radius:10px;padding:14px;box-shadow:0 12px 26px rgba(33,31,27,.22);width:270px;}
   .invite-popover h4{margin:0 0 4px;font-size:13.5px;font-family:'Young Serif',serif;font-weight:400;}
   .invite-popover p{margin:0 0 10px;font-size:12px;color:var(--ink-soft);}
   .invite-row{display:flex;gap:6px;margin-bottom:10px;}
@@ -298,9 +348,12 @@
   .canvas-wrap.arrow-mode{cursor:crosshair;}
   .canvas{position:absolute;top:0;left:0;width:9000px;height:6000px;transform-origin:0 0;}
   .conn-layer{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
-  .thread{fill:none;stroke:var(--accent);stroke-width:1.8;pointer-events:stroke;cursor:pointer;}
+  .thread{fill:none;stroke:var(--accent);stroke-width:3;pointer-events:stroke;cursor:pointer;}
   .thread:hover{stroke:var(--danger);}
-  .thread-hit{fill:none;stroke:transparent;stroke-width:14px;pointer-events:stroke;cursor:pointer;}
+  .thread.selected{stroke:var(--danger);}
+  .thread-hit{fill:none;stroke:transparent;stroke-width:18px;pointer-events:stroke;cursor:pointer;}
+  .thread-endpoint{fill:var(--accent);opacity:0;pointer-events:none;transition:opacity .1s ease;}
+  .thread.selected ~ .thread-endpoint, .line-group.selected .thread-endpoint{opacity:1;}
   .draw-temp{pointer-events:none;opacity:.8;}
   .bend-handle{fill:#fff;stroke:var(--accent);stroke-width:2px;opacity:0;pointer-events:none;cursor:grab;transition:opacity .12s ease;}
   .line-group:hover .bend-handle{opacity:1;pointer-events:all;}
@@ -335,7 +388,11 @@
   .rotate-handle:active{cursor:grabbing;}
   .rotate-handle svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
   .card-body{padding:14px 14px 12px;flex:1;overflow-y:auto;min-height:0;}
-  .card-tag{font-family:'Caveat',cursive;font-weight:700;font-size:14px;color:var(--ink-soft);display:inline-block;margin-bottom:4px;opacity:.75;}
+  .card-tag{font-family:'Caveat',cursive;font-weight:700;font-size:14px;color:var(--card-ink-soft);display:inline-block;margin-bottom:4px;opacity:.75;}
+  .format-toolbar{display:none;gap:4px;margin-bottom:6px;}
+  .format-toolbar.visible{display:flex;}
+  .format-btn{width:22px;height:22px;border-radius:5px;border:1px solid #ddd2c4;background:#fff;cursor:pointer;font-size:11px;color:var(--card-ink, var(--ink));display:flex;align-items:center;justify-content:center;padding:0;}
+  .format-btn:hover{border-color:var(--accent);color:var(--accent);}
 
   .swatches{display:flex;gap:5px;margin-right:auto;}
   .swatch{width:12px;height:12px;border-radius:50%;cursor:pointer;border:1px solid rgba(0,0,0,.15);}
@@ -345,11 +402,11 @@
   .icon-btn:hover{background:rgba(0,0,0,.08);color:var(--danger);}
   .icon-btn svg{width:12px;height:12px;}
 
-  .note-text{outline:none;font-size:14px;line-height:1.5;color:var(--ink);min-height:40px;white-space:pre-wrap;word-break:break-word;cursor:text;}
+  .note-text{outline:none;font-size:14px;line-height:1.5;color:var(--card-ink);min-height:40px;white-space:pre-wrap;word-break:break-word;cursor:text;}
   .note-text:empty:before{content:attr(data-ph);color:rgba(33,31,27,.4);}
 
   .card.type-headline .card-body{padding:16px 16px 14px;}
-  .headline-text{outline:none;font-family:'Young Serif',serif;font-weight:400;font-size:22px;line-height:1.25;color:var(--ink);min-height:30px;white-space:pre-wrap;word-break:break-word;cursor:text;}
+  .headline-text{outline:none;font-family:'Young Serif',serif;font-weight:400;font-size:22px;line-height:1.25;color:var(--card-ink);min-height:30px;white-space:pre-wrap;word-break:break-word;cursor:text;}
   .headline-text:empty:before{content:attr(data-ph);color:rgba(33,31,27,.35);}
 
   .card.type-image .card-body{padding:8px;}
@@ -362,7 +419,7 @@
   .img-or{text-align:center;font-size:11px;color:#a39c86;}
   .img-broken{display:flex;align-items:center;justify-content:center;height:120px;background:#e6ddc9;border-radius:6px;color:#a39c86;font-size:12px;text-align:center;padding:10px;}
 
-  .check-title{font-weight:700;font-size:14px;outline:none;margin-bottom:8px;cursor:text;}
+  .check-title{font-weight:700;font-size:14px;outline:none;margin-bottom:8px;cursor:text;color:var(--card-ink);}
   .check-item{display:flex;align-items:flex-start;gap:7px;font-size:13.5px;margin-bottom:6px;line-height:1.4;}
   .check-item input[type=checkbox]{margin-top:3px;accent-color:var(--accent);flex-shrink:0;}
   .check-item .ci-text{outline:none;flex:1;word-break:break-word;cursor:text;}
@@ -395,10 +452,19 @@
         <svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></svg>
       </button>
     </div>
+    <div class="sidebar-nav-item" id="homeNavItem">
+      <svg viewBox="0 0 24 24"><path d="M12 3.2 3 11h2.4v9h5.2v-6h2.8v6h5.2v-9H21z"/></svg>Home
+    </div>
     <div class="board-list-label">Houses</div>
     <div class="board-list" id="boardList"></div>
     <button class="add-board" id="addBoardBtn">+ New house</button>
-    <div class="sidebar-foot">Everything here lives for this session only — nothing is saved once you close the tab.</div>
+    <div class="sidebar-foot">
+      <div class="sidebar-foot-row">
+        <span>Dark mode</span>
+        <button class="theme-toggle" id="themeToggle" role="switch" aria-checked="false" aria-label="Toggle dark mode"><span class="theme-toggle-knob"></span></button>
+      </div>
+      <div class="sidebar-foot-link" id="signOutBtn">Sign out</div>
+    </div>
   </aside>
 
   <div class="main">
@@ -439,14 +505,6 @@
         <span class="room-crumb" id="roomCrumb"></span>
         <h1 class="board-title" id="boardTitle" contenteditable="true" spellcheck="false" dir="auto"></h1>
 
-        <div class="tool-group">
-          <button class="tbtn tbtn-note" id="addNote" title="Add a note">✎ Note</button>
-          <button class="tbtn tbtn-image" id="addImage" title="Add an image">▧ Image</button>
-          <button class="tbtn tbtn-check" id="addCheck" title="Add a checklist">☑ List</button>
-          <button class="tbtn tbtn-headline" id="addHeadline" title="Add a headline">H Headline</button>
-          <button class="tbtn tbtn-arrow" id="arrowBtn" title="Draw an arrow — drag from a point or a card to another">↗ Arrow</button>
-        </div>
-
         <div class="spacer"></div>
 
         <div class="search-box">
@@ -468,11 +526,31 @@
         </div>
       </div>
 
-      <div class="canvas-wrap" id="canvasWrap">
-        <div class="canvas" id="canvas">
-          <svg class="conn-layer" id="connLayer" width="9000" height="6000"></svg>
+      <div class="board-body">
+        <div class="tool-rail">
+          <button class="rail-btn rail-note" id="addNote" title="Add a note">
+            <span class="rail-icon">✎</span><span class="rail-label">Note</span>
+          </button>
+          <button class="rail-btn rail-image" id="addImage" title="Add an image">
+            <span class="rail-icon">▧</span><span class="rail-label">Image</span>
+          </button>
+          <button class="rail-btn rail-check" id="addCheck" title="Add a checklist">
+            <span class="rail-icon">☑</span><span class="rail-label">List</span>
+          </button>
+          <button class="rail-btn rail-headline" id="addHeadline" title="Add a headline">
+            <span class="rail-icon rail-icon-text">H</span><span class="rail-label">Headline</span>
+          </button>
+          <button class="rail-btn rail-arrow" id="arrowBtn" title="Draw an arrow — drag from a point or a card to another">
+            <span class="rail-icon">↗</span><span class="rail-label">Arrow</span>
+          </button>
         </div>
-        <div class="empty-hint" id="emptyHint">This room is empty — add a note to start thinking out loud.</div>
+
+        <div class="canvas-wrap" id="canvasWrap">
+          <div class="canvas" id="canvas">
+            <svg class="conn-layer" id="connLayer" width="9000" height="6000"></svg>
+          </div>
+          <div class="empty-hint" id="emptyHint">This room is empty — add a note to start thinking out loud.</div>
+        </div>
       </div>
     </div>
 
@@ -573,6 +651,8 @@ const db = getFirestore(fbApp);
     isAdminVerified: false,
     houseSyncStarted: false,
     inviteContext: null, // {houseId, houseName} if this browser opened a join link
+    selectedArrowId: null,
+    theme: 'light',
   };
 
   // Parse ?invite=<houseId>&house=<name> from a shared join link, if present.
@@ -700,12 +780,13 @@ const db = getFirestore(fbApp);
 
   // Starts the live, per-user houses listener. Only called once we actually
   // know who "me" is (after sign-up, returning-visitor match, or admin login).
+  let unsubscribeHouses = null;
   function startHouseSync(email){
     if(state.houseSyncStarted) return;
     state.houseSyncStarted = true;
     state.myEmail = email;
     const q = query(HOUSES_COL, where('memberEmails', 'array-contains', email));
-    onSnapshot(q, async snap => {
+    unsubscribeHouses = onSnapshot(q, async snap => {
       // While the user is actively typing anywhere, ignore incoming
       // updates completely (not just the visual rebuild) — otherwise
       // state.houses gets swapped to fresh objects mid-edit, and whatever
@@ -809,6 +890,42 @@ const db = getFirestore(fbApp);
   const sidebar = document.getElementById('sidebar');
   const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
   const showSidebarBtn = document.getElementById('showSidebarBtn');
+  const homeNavItem = document.getElementById('homeNavItem');
+  const themeToggle = document.getElementById('themeToggle');
+  const signOutBtn = document.getElementById('signOutBtn');
+
+  homeNavItem.addEventListener('click', () => goHome());
+
+  function applyTheme(theme){
+    state.theme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    themeToggle.setAttribute('aria-checked', theme === 'dark' ? 'true' : 'false');
+    try{ localStorage.setItem('ttp_theme', theme); } catch(err){}
+  }
+  themeToggle.addEventListener('click', () => {
+    applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+  });
+  (function initTheme(){
+    let saved = null;
+    try{ saved = localStorage.getItem('ttp_theme'); } catch(err){}
+    applyTheme(saved === 'dark' ? 'dark' : 'light');
+  })();
+
+  function signOut(){
+    if(typeof unsubscribeHouses === 'function'){ unsubscribeHouses(); unsubscribeHouses = null; }
+    state.accessGranted = false;
+    state.isAdminVerified = false;
+    state.myEmail = null;
+    state.myRequestId = null;
+    state.houseSyncStarted = false;
+    state.houses = [];
+    state.gateStage = 'signup';
+    try{ localStorage.removeItem('ttp_myEmail'); } catch(err){}
+    appRoot.style.display = 'none';
+    gateView.style.display = 'flex';
+    renderGate();
+  }
+  signOutBtn.addEventListener('click', () => signOut());
 
   function currentHouse(){ return state.houses.find(h => h.id === state.currentHouseId); }
   function currentRoom(){ const h = currentHouse(); return h ? h.rooms.find(r => r.id === state.currentRoomId) : null; }
@@ -877,6 +994,7 @@ const db = getFirestore(fbApp);
     state.view = 'room';
     state.currentHouseId = houseId;
     state.currentRoomId = roomId;
+    state.selectedArrowId = null;
     setArrowMode(false);
     hideAllViews();
     boardView.classList.remove('hidden');
@@ -1144,8 +1262,17 @@ const db = getFirestore(fbApp);
   }
   window.addEventListener('keydown', e => {
     if(state.view !== 'room') return;
-    if(!(e.ctrlKey || e.metaKey)) return;
     if(document.activeElement && document.activeElement.isContentEditable) return;
+    if((e.key === 'Delete' || e.key === 'Backspace') && state.selectedArrowId){
+      e.preventDefault();
+      const r = currentRoom();
+      pushHistory();
+      r.arrows = r.arrows.filter(a => a.id !== state.selectedArrowId);
+      state.selectedArrowId = null;
+      drawOverlay();
+      return;
+    }
+    if(!(e.ctrlKey || e.metaKey)) return;
     const key = e.key.toLowerCase();
     if(key === 'z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); }
     else if(key === 'y'){ e.preventDefault(); redo(); }
@@ -1320,9 +1447,80 @@ const db = getFirestore(fbApp);
   // of natural mouse jitter during a click was enough to trigger a drag and
   // steal focus mid-click, which is what made the text cursor seem to
   // vanish. History is tracked separately, on actual focus.
+  // Restricts rich card text to only the tags/attributes the formatting
+  // toolbar itself produces (bold, underline, highlight spans). Applied on
+  // render so it protects against any content, not just what was typed
+  // through this UI — matters now that houses can be shared with others.
+  function sanitizeCardHtml(html){
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    const allowedTags = new Set(['B','U','SPAN','BR','DIV','STRONG','EM']);
+    (function clean(node){
+      [...node.childNodes].forEach(child => {
+        if(child.nodeType === 1){
+          if(!allowedTags.has(child.tagName)){
+            const parent = child.parentNode;
+            while(child.firstChild) parent.insertBefore(child.firstChild, child);
+            parent.removeChild(child);
+            return;
+          }
+          [...child.attributes].forEach(attr => {
+            if(child.tagName === 'SPAN' && attr.name === 'style'){
+              const bg = child.style.backgroundColor;
+              child.removeAttribute('style');
+              if(bg) child.style.backgroundColor = bg;
+            } else {
+              child.removeAttribute(attr.name);
+            }
+          });
+          clean(child);
+        } else if(child.nodeType !== 3){
+          child.remove();
+        }
+      });
+    })(container);
+    return container.innerHTML;
+  }
+
   function guardEditableDrag(el){
     el.addEventListener('focus', () => pushHistory());
     return e => { e.stopPropagation(); };
+  }
+
+  // Small formatting toolbar (bold / underline / highlight) shown while a
+  // text field is focused. Uses execCommand — deprecated but still the
+  // simplest reliable way to apply inline formatting inside a plain
+  // contenteditable without pulling in a rich-text editor library.
+  function makeFormatToolbar(textEl){
+    const bar = document.createElement('div');
+    bar.className = 'format-toolbar';
+    function cmdBtn(html, title, run){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'format-btn';
+      b.innerHTML = html;
+      b.title = title;
+      b.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
+      b.addEventListener('click', e => {
+        e.stopPropagation();
+        textEl.focus();
+        run();
+        scheduleSaveBoard();
+      });
+      return b;
+    }
+    bar.appendChild(cmdBtn('<b>B</b>', 'Bold', () => document.execCommand('bold')));
+    bar.appendChild(cmdBtn('<u>U</u>', 'Underline', () => document.execCommand('underline')));
+    bar.appendChild(cmdBtn('H', 'Highlight', () => {
+      if(!document.execCommand('hiliteColor', false, '#ffd23f')){
+        document.execCommand('backColor', false, '#ffd23f');
+      }
+    }));
+    textEl.addEventListener('focus', () => { bar.classList.add('visible'); });
+    textEl.addEventListener('blur', () => {
+      setTimeout(() => { if(document.activeElement !== textEl) bar.classList.remove('visible'); }, 120);
+    });
+    return bar;
   }
 
   function buildBody(card, cardEl){
@@ -1339,9 +1537,10 @@ const db = getFirestore(fbApp);
       div.contentEditable = 'true';
       div.dir = 'auto';
       div.dataset.ph = 'Type an idea…';
-      div.textContent = card.content;
+      div.innerHTML = sanitizeCardHtml(card.content || '');
       div.addEventListener('mousedown', guardEditableDrag(div));
-      div.addEventListener('input', () => { card.content = div.textContent; scheduleSaveBoard(); });
+      div.addEventListener('input', () => { card.content = sanitizeCardHtml(div.innerHTML); scheduleSaveBoard(); });
+      frag.appendChild(makeFormatToolbar(div));
       frag.appendChild(div);
     }
 
@@ -1519,6 +1718,7 @@ const db = getFirestore(fbApp);
   const CARD_MAX_H = 640;
 
   function onCardMouseDown(e, card, el){
+    if(state.selectedArrowId){ state.selectedArrowId = null; drawOverlay(); }
     if(state.arrowMode){
       e.stopPropagation();
       startArrowDraw(e, {cardId: card.id});
@@ -1588,6 +1788,7 @@ const db = getFirestore(fbApp);
   let panning = null;
   canvasWrap.addEventListener('mousedown', e => {
     if(e.target !== canvasWrap && e.target !== canvas && e.target !== connLayer) return;
+    if(state.selectedArrowId){ state.selectedArrowId = null; drawOverlay(); }
     if(state.arrowMode){ startArrowDraw(e, null); return; }
     panning = true;
     canvasWrap.classList.add('panning');
@@ -1772,24 +1973,34 @@ const db = getFirestore(fbApp);
       const liveCx = (p1.x + p2.x) / 2, liveCy = (p1.y + p2.y) / 2;
       const cx = arrow.cx ?? liveCx, cy = arrow.cy ?? liveCy;
       const d = `M ${p1.x} ${p1.y} Q ${cx} ${cy} ${p2.x} ${p2.y}`;
+      const isSelected = state.selectedArrowId === arrow.id;
 
       const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-      g.setAttribute('class', 'line-group');
+      g.setAttribute('class', 'line-group' + (isSelected ? ' selected' : ''));
 
       const hit = document.createElementNS('http://www.w3.org/2000/svg','path');
       hit.setAttribute('d', d);
       hit.setAttribute('class', 'thread-hit');
-      hit.addEventListener('click', () => {
+      hit.addEventListener('click', e => {
         if(state.arrowMode) return;
-        pushHistory();
-        r.arrows = r.arrows.filter(a => a.id !== arrow.id);
+        e.stopPropagation();
+        state.selectedArrowId = arrow.id;
         drawOverlay();
       });
 
       const path = document.createElementNS('http://www.w3.org/2000/svg','path');
       path.setAttribute('d', d);
-      path.setAttribute('class', 'thread');
+      path.setAttribute('class', 'thread' + (isSelected ? ' selected' : ''));
       path.setAttribute('marker-end','url(#arrowhead)');
+
+      const dot1 = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot1.setAttribute('class','thread-endpoint');
+      dot1.setAttribute('r', 4);
+      dot1.setAttribute('cx', p1.x); dot1.setAttribute('cy', p1.y);
+      const dot2 = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot2.setAttribute('class','thread-endpoint');
+      dot2.setAttribute('r', 4);
+      dot2.setAttribute('cx', p2.x); dot2.setAttribute('cy', p2.y);
 
       const handle = makeHandle(() => {
         if(arrow.cx === undefined){ arrow.cx = liveCx; arrow.cy = liveCy; }
@@ -1798,7 +2009,7 @@ const db = getFirestore(fbApp);
       handle.setAttribute('cx', cx);
       handle.setAttribute('cy', cy);
 
-      g.appendChild(hit); g.appendChild(path); g.appendChild(handle);
+      g.appendChild(hit); g.appendChild(path); g.appendChild(dot1); g.appendChild(dot2); g.appendChild(handle);
       connLayer.appendChild(g);
     });
   }
