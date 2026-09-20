@@ -806,22 +806,34 @@ const db = getFirestore(fbApp);
   let applyingRemoteBoard = false;
   let applyingRemoteGate = false;
   const houseSaveTimers = {};
-  const pendingSaveData = {}; // houseId -> house object still waiting to be written
+  const pendingSaveData = {}; // houseId -> house object not yet CONFIRMED saved
 
+  // The one place that actually talks to Firestore for a house. Keeps the
+  // house marked "pending" for the entire round trip — not just until the
+  // request is sent — so an incoming snapshot can never be mistaken for
+  // more current than a write that's still in flight. That gap (marking a
+  // save "done" the instant it started, instead of when it finished) was
+  // the actual cause of new cards vanishing after leaving and re-entering
+  // a room.
+  function doSaveHouse(h){
+    pendingSaveData[h.id] = h;
+    return setDoc(doc(db, 'houses', h.id), h)
+      .then(() => {
+        // Only clear it if nothing newer has been scheduled in the meantime.
+        if(pendingSaveData[h.id] === h) delete pendingSaveData[h.id];
+      })
+      .catch(err => console.error('Save failed', err));
+  }
   function scheduleSaveBoard(){
     const h = currentHouse();
     if(!h || applyingRemoteBoard) return;
     pendingSaveData[h.id] = h;
     clearTimeout(houseSaveTimers[h.id]);
-    houseSaveTimers[h.id] = setTimeout(() => {
-      delete pendingSaveData[h.id];
-      setDoc(doc(db, 'houses', h.id), h).catch(err => console.error('Save failed', err));
-    }, 900);
+    houseSaveTimers[h.id] = setTimeout(() => doSaveHouse(h), 900);
   }
   function saveHouseNow(h){
-    delete pendingSaveData[h.id];
     clearTimeout(houseSaveTimers[h.id]);
-    return setDoc(doc(db, 'houses', h.id), h).catch(err => console.error('Save failed', err));
+    return doSaveHouse(h);
   }
   // Immediately writes any edit that's still sitting in the 900ms debounce
   // window, instead of letting it get silently dropped by a sign-out or a
@@ -830,9 +842,7 @@ const db = getFirestore(fbApp);
   function flushPendingSaves(){
     Object.keys(pendingSaveData).forEach(id => {
       clearTimeout(houseSaveTimers[id]);
-      const h = pendingSaveData[id];
-      delete pendingSaveData[id];
-      setDoc(doc(db, 'houses', id), h).catch(err => console.error('Save failed', err));
+      doSaveHouse(pendingSaveData[id]);
     });
   }
   window.addEventListener('beforeunload', flushPendingSaves);
