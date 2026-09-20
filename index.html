@@ -603,6 +603,7 @@
           <button id="zoomOut">–</button>
           <span class="zoom-label" id="zoomLabel">100%</span>
           <button id="zoomIn">+</button>
+          <button id="fitViewBtn" title="Fit all cards in view">⛶</button>
         </div>
       </div>
 
@@ -1397,7 +1398,15 @@ const db = getFirestore(fbApp);
     roomCrumb.textContent = h.name + ' /';
     applyAtmosphere(r);
     clearCanvasCards();
-    r.cards.forEach(c => canvas.appendChild(buildCardEl(c)));
+    r.cards.forEach(c => {
+      try{
+        canvas.appendChild(buildCardEl(c));
+      } catch(err){
+        // One malformed card should never take the whole room down with it —
+        // render everything else and report which card failed.
+        console.error('Failed to render card', c.id, c.type, err);
+      }
+    });
     applyTransform();
     drawOverlay();
     emptyHint.style.display = r.cards.length ? 'none' : 'block';
@@ -1713,6 +1722,7 @@ const db = getFirestore(fbApp);
 
       const list = document.createElement('div');
       list.className = 'check-list';
+      if(!Array.isArray(card.items)) card.items = [];
       card.items.forEach(it => list.appendChild(checkItemEl(card, it, list)));
       frag.appendChild(list);
 
@@ -1757,7 +1767,7 @@ const db = getFirestore(fbApp);
   function collectDueItems(){
     const map = {};
     currentRoom().cards.forEach(c => {
-      if(c.type !== 'checklist') return;
+      if(c.type !== 'checklist' || !Array.isArray(c.items)) return;
       c.items.forEach(it => {
         if(it.due){
           (map[it.due] = map[it.due] || []).push({cardId: c.id, itemId: it.id, text: it.text, done: it.done});
@@ -1779,6 +1789,13 @@ const db = getFirestore(fbApp);
   }
 
   function buildCalendarBody(card){
+    if(card.viewYear === undefined || card.viewMonth === undefined){
+      const now = new Date();
+      card.viewYear = now.getFullYear();
+      card.viewMonth = now.getMonth();
+    }
+    if(card.openDay === undefined) card.openDay = null;
+
     const wrap = document.createElement('div');
     wrap.className = 'calendar-card-body';
 
@@ -2518,6 +2535,35 @@ const db = getFirestore(fbApp);
   }
   document.getElementById('zoomIn').addEventListener('click', () => setZoom(currentRoom().zoom + 0.1));
   document.getElementById('zoomOut').addEventListener('click', () => setZoom(currentRoom().zoom - 0.1));
+
+  // Recenters and rescales the view so every card is visible — the fix for
+  // "my cards are there but I can't see them", regardless of how far off
+  // the current pan/zoom has drifted.
+  function fitViewToCards(){
+    const r = currentRoom();
+    if(!r.cards.length) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    r.cards.forEach(c => {
+      const el = canvas.querySelector(`[data-id="${c.id}"]`);
+      const w = c.w || 220, h = (el ? el.offsetHeight : 0) || c.h || 120;
+      minX = Math.min(minX, c.x);
+      minY = Math.min(minY, c.y);
+      maxX = Math.max(maxX, c.x + w);
+      maxY = Math.max(maxY, c.y + h);
+    });
+    const pad = 60;
+    const contentW = (maxX - minX) + pad * 2;
+    const contentH = (maxY - minY) + pad * 2;
+    const rect = canvasWrap.getBoundingClientRect();
+    const zoom = Math.min(1.6, Math.max(0.4, Math.min(rect.width / contentW, rect.height / contentH)));
+    r.zoom = zoom;
+    r.pan.x = rect.width/2 - (minX + (maxX - minX)/2) * zoom;
+    r.pan.y = rect.height/2 - (minY + (maxY - minY)/2) * zoom;
+    applyTransform();
+    updateZoomLabel();
+  }
+  document.getElementById('fitViewBtn').addEventListener('click', fitViewToCards);
+
   canvasWrap.addEventListener('wheel', e => {
     e.preventDefault();
     const r = currentRoom();
