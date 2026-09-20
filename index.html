@@ -916,6 +916,16 @@ const db = getFirestore(fbApp);
         await saveHouseNow(starter);
         houses = [starter];
       }
+      // Any house with a save still sitting in the debounce window hasn't
+      // reached Firestore yet, so this snapshot can't possibly reflect it —
+      // e.g. adding an Image/Calendar/Book/Bookshelf card doesn't focus a
+      // text field, so the check above wouldn't have caught this case.
+      // Keep our own newer local copy instead of overwriting it with the
+      // server's now-stale version.
+      houses = houses.map(h => pendingSaveData[h.id] || h);
+      Object.keys(pendingSaveData).forEach(id => {
+        if(!houses.find(h => h.id === id)) houses.push(pendingSaveData[id]);
+      });
       state.houses = houses;
       reflectRemoteBoardChange();
       applyingRemoteBoard = false;
