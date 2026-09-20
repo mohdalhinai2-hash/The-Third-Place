@@ -805,18 +805,41 @@ const db = getFirestore(fbApp);
   let applyingRemoteBoard = false;
   let applyingRemoteGate = false;
   const houseSaveTimers = {};
+  const pendingSaveData = {}; // houseId -> house object still waiting to be written
 
   function scheduleSaveBoard(){
     const h = currentHouse();
     if(!h || applyingRemoteBoard) return;
+    pendingSaveData[h.id] = h;
     clearTimeout(houseSaveTimers[h.id]);
     houseSaveTimers[h.id] = setTimeout(() => {
+      delete pendingSaveData[h.id];
       setDoc(doc(db, 'houses', h.id), h).catch(err => console.error('Save failed', err));
     }, 900);
   }
   function saveHouseNow(h){
+    delete pendingSaveData[h.id];
+    clearTimeout(houseSaveTimers[h.id]);
     return setDoc(doc(db, 'houses', h.id), h).catch(err => console.error('Save failed', err));
   }
+  // Immediately writes any edit that's still sitting in the 900ms debounce
+  // window, instead of letting it get silently dropped by a sign-out or a
+  // closed tab. Fires synchronously enough that the request is issued
+  // before the page can finish unloading.
+  function flushPendingSaves(){
+    Object.keys(pendingSaveData).forEach(id => {
+      clearTimeout(houseSaveTimers[id]);
+      const h = pendingSaveData[id];
+      delete pendingSaveData[id];
+      setDoc(doc(db, 'houses', id), h).catch(err => console.error('Save failed', err));
+    });
+  }
+  window.addEventListener('beforeunload', flushPendingSaves);
+  window.addEventListener('pagehide', flushPendingSaves);
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'hidden') flushPendingSaves();
+  });
+
   function scheduleSaveGate(){
     if(applyingRemoteGate) return;
     clearTimeout(scheduleSaveGate._t);
@@ -1001,6 +1024,7 @@ const db = getFirestore(fbApp);
   })();
 
   function signOut(){
+    flushPendingSaves();
     if(typeof unsubscribeHouses === 'function'){ unsubscribeHouses(); unsubscribeHouses = null; }
     state.accessGranted = false;
     state.isAdminVerified = false;
