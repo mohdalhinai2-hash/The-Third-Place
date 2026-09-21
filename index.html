@@ -2311,7 +2311,7 @@ const db = getFirestore(fbApp);
       input.addEventListener('click', e => e.stopPropagation());
       input.addEventListener('change', () => {
         pushHistory();
-        item.due = input.value || undefined;
+        if(input.value){ item.due = input.value; } else { delete item.due; }
         scheduleSaveBoard();
         refreshAllCalendarCards();
         input.replaceWith(renderDueDisplay());
