@@ -651,7 +651,8 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
-  getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where
+  getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where,
+  enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -665,6 +666,18 @@ const firebaseConfig = {
 };
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
+// A write from setDoc() lands in this local cache synchronously, before any
+// network round-trip — so it survives a hard refresh or a sign-out even if
+// the actual request to Firestore's servers hasn't finished yet. Without
+// this, a beforeunload-triggered save could still be silently cut off by
+// the browser mid-flight, since pages aren't required to wait for pending
+// network requests before tearing down.
+enableIndexedDbPersistence(db).catch(err => {
+  // Fails gracefully if another tab of this site is already open (only one
+  // tab can hold the persistent cache at a time) or the browser doesn't
+  // support it — the app still works, it just loses this extra safety net.
+  console.warn('Offline persistence unavailable:', err.code);
+});
 
 (function(){
   "use strict";
