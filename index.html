@@ -6,6 +6,7 @@
 <title>The Third Place — A place to stop an idea</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
   :root{
     --canvas: #f3efe8;
@@ -136,8 +137,8 @@
   .gate-approved-banner button{background:#1e8f5f;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
   .gate-empty{font-size:12.5px;color:#a39c86;font-style:italic;}
   .gate-admin-note{font-size:11.5px;color:#a39c86;margin-top:16px;line-height:1.5;}
-  .gate-admin-corner{position:fixed;bottom:18px;right:20px;background:none;border:none;color:#57534a;font-size:11px;letter-spacing:.04em;cursor:pointer;font-family:inherit;padding:6px 8px;opacity:.55;}
-  .gate-admin-corner:hover{opacity:1;color:#948f80;}
+  .gate-google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:1px solid #dadce0;color:#3c4043;border-radius:8px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:6px;}
+  .gate-google-btn:hover{background:#f7f8f8;box-shadow:0 1px 3px rgba(0,0,0,.12);}
 
   /* ---------- Sidebar ---------- */
   .sidebar{width:222px;flex-shrink:0;background:var(--sidebar-bg);color:var(--paper);display:flex;flex-direction:column;padding:18px 14px;overflow:hidden;transition:width .16s ease, padding .16s ease;position:relative;}
@@ -521,7 +522,6 @@
   <div class="gate-form-half">
     <div class="gate-card" id="gateCard"></div>
   </div>
-  <button class="gate-admin-corner" id="gateAdminCorner">Admin</button>
 </div>
 <div class="app" id="appRoot" style="display:none;">
 
@@ -654,6 +654,9 @@ import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where,
   enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as firebaseSignOut
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBUGKXUhqham5qbJksS08pHkIu2oqD5rP0",
@@ -678,12 +681,34 @@ enableIndexedDbPersistence(db).catch(err => {
   // support it — the app still works, it just loses this extra safety net.
   console.warn('Offline persistence unavailable:', err.code);
 });
+const auth = getAuth(fbApp);
+const googleProvider = new GoogleAuthProvider();
 
 (function(){
   "use strict";
 
   const ADMIN_EMAIL = 'mohdalhinai2@gmail.com';
-  const ADMIN_PASSWORD = '91356713Mm';
+
+  // ---- EmailJS config — replace these three with your own once you've
+  // created a free account at emailjs.com (see setup steps). Until then,
+  // sendInviteEmail() below just skips silently and logs a note instead.
+  const EMAILJS_SERVICE_ID = 'service_h5ylb78';
+  const EMAILJS_TEMPLATE_ID = 'template_lt118l8';
+  const EMAILJS_PUBLIC_KEY = 'xgSRIAsIleZr51XGD';
+  if(typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY'){
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+  }
+  function sendInviteEmail(toEmail, houseOrCommunityName, message){
+    if(typeof emailjs === 'undefined' || EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY'){
+      console.log('[EmailJS not configured yet] Would have emailed', toEmail, '—', message);
+      return;
+    }
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email: toEmail,
+      house_name: houseOrCommunityName,
+      message
+    }).catch(err => console.error('Email send failed', err));
+  }
 
   const COLORS = [
     {name:'cream',  hex:'#ffffff'},
@@ -745,11 +770,13 @@ enableIndexedDbPersistence(db).catch(err => {
     view: 'home', // 'home' | 'house' | 'room'
     arrowMode: false,
     communityName: 'The Crazy Ones Community',
-    gateStage: 'signup', // 'signup' | 'pending' | 'adminLogin'
+    gateStage: 'signin', // 'signin' | 'onboarding' | 'pending'
     pendingRequests: [],
     members: [],
     myRequestId: null,
     myEmail: null,
+    myGoogleEmail: null,
+    myGoogleName: null,
     accessGranted: false,
     isAdminVerified: false,
     houseSyncStarted: false,
@@ -885,14 +912,11 @@ enableIndexedDbPersistence(db).catch(err => {
       state.currentRoomId = h.rooms[0] ? h.rooms[0].id : null;
     }
     if(!state.accessGranted) return;
-    // If the user is actively typing anywhere (a card, a title, anything
-    // contenteditable), skip rebuilding the DOM entirely — even our own
-    // debounced save echoes back through this same listener, and a full
-    // rebuild would destroy and recreate the exact field they're typing
-    // into, which is what was making the cursor seem to vanish. Local
-    // state already has the correct data regardless; we just defer the
-    // visual rebuild until they're not mid-edit.
-    if(document.activeElement && document.activeElement.isContentEditable) return;
+    // Each render function below protects only the specific field currently
+    // being typed into (see renderRoom / renderHouseView) — we no longer
+    // block the whole update just because *something* has focus, since that
+    // was silently preventing other invited users' changes from ever
+    // arriving whenever you had any field focused for any reason.
     renderSidebar();
     if(state.view === 'home') renderHome();
     else if(state.view === 'house' && currentHouse()) renderHouseView();
@@ -905,7 +929,7 @@ enableIndexedDbPersistence(db).catch(err => {
     // (in another tab, say), let me straight in.
     if(!state.accessGranted && state.myRequestId){
       const nowMember = state.members.find(m => m.id === state.myRequestId);
-      if(nowMember){ enterApp(); return; }
+      if(nowMember){ state.myEmail = nowMember.email; enterApp(); return; }
     }
     if(state.accessGranted){
       if(state.view === 'home') renderInsideRooms();
@@ -923,14 +947,6 @@ enableIndexedDbPersistence(db).catch(err => {
     state.myEmail = email;
     const q = query(HOUSES_COL, where('memberEmails', 'array-contains', email));
     unsubscribeHouses = onSnapshot(q, async snap => {
-      // While the user is actively typing anywhere, ignore incoming
-      // updates completely (not just the visual rebuild) — otherwise
-      // state.houses gets swapped to fresh objects mid-edit, and whatever
-      // field they're still typing into keeps writing to the old, now
-      // orphaned object that no longer gets saved. Local state already
-      // has the correct data in this case (we're the one who just saved
-      // it), so there's nothing to lose by skipping.
-      if(document.activeElement && document.activeElement.isContentEditable) return;
       applyingRemoteBoard = true;
       let houses = snap.docs.map(d => d.data());
       if(!houses.length && !snap.metadata.fromCache){
@@ -942,7 +958,7 @@ enableIndexedDbPersistence(db).catch(err => {
       // Any house with a save still sitting in the debounce window hasn't
       // reached Firestore yet, so this snapshot can't possibly reflect it —
       // e.g. adding an Image/Calendar/Book/Bookshelf card doesn't focus a
-      // text field, so the check above wouldn't have caught this case.
+      // text field, so a focus-based check wouldn't catch this case anyway.
       // Keep our own newer local copy instead of overwriting it with the
       // server's now-stale version.
       houses = houses.map(h => pendingSaveData[h.id] || h);
@@ -972,30 +988,6 @@ enableIndexedDbPersistence(db).catch(err => {
       }
     } catch(err){ console.error('Could not reach Firestore for gate data', err); }
 
-    // Returning visitor? Skip the request screen if this browser already
-    // signed up before (works once this file is hosted for real, since
-    // localStorage isn't available inside the Claude.ai preview sandbox).
-    let savedEmail = null;
-    try{ savedEmail = localStorage.getItem('ttp_myEmail'); } catch(err){ /* storage blocked */ }
-    if(savedEmail){
-      const mem = state.members.find(m => m.email.toLowerCase() === savedEmail.toLowerCase());
-      const pending = state.pendingRequests.find(r => r.email.toLowerCase() === savedEmail.toLowerCase());
-      if(mem){
-        state.myRequestId = mem.id;
-        state.myEmail = mem.email;
-        enterApp();
-      } else if(pending){
-        state.myRequestId = pending.id;
-        state.gateStage = 'pending';
-        renderGate();
-      } else {
-        try{ localStorage.removeItem('ttp_myEmail'); } catch(err){}
-        renderGate();
-      }
-    } else {
-      renderGate();
-    }
-
     onSnapshot(GATE_DOC, snap => {
       if(!snap.exists()) return;
       applyingRemoteGate = true;
@@ -1005,6 +997,45 @@ enableIndexedDbPersistence(db).catch(err => {
       state.members = d.members || [];
       reflectRemoteGateChange();
       applyingRemoteGate = false;
+    });
+
+    // Firebase Auth remembers the signed-in Google account itself — no need
+    // for our own localStorage tracking. This fires immediately on load
+    // with whoever's still signed in (or null), and again any time sign-in
+    // state changes.
+    onAuthStateChanged(auth, user => {
+      if(!user){
+        if(!state.accessGranted) renderGate();
+        return;
+      }
+      const email = user.email;
+      if(email.toLowerCase() === ADMIN_EMAIL){
+        state.isAdminVerified = true;
+        state.myEmail = email;
+        state.myGoogleName = user.displayName || '';
+        if(!state.accessGranted) enterApp();
+        return;
+      }
+      const mem = state.members.find(m => m.email.toLowerCase() === email.toLowerCase());
+      const pending = state.pendingRequests.find(r => r.email.toLowerCase() === email.toLowerCase());
+      if(mem){
+        state.myRequestId = mem.id;
+        state.myEmail = mem.email;
+        if(!state.accessGranted) enterApp();
+      } else if(pending){
+        state.myRequestId = pending.id;
+        state.myGoogleEmail = email;
+        state.myGoogleName = user.displayName || '';
+        state.gateStage = 'pending';
+        if(!state.accessGranted) renderGate();
+      } else {
+        // Signed in with Google for the first time — show the quick
+        // "tell us about your ideas" step before submitting their request.
+        state.myGoogleEmail = email;
+        state.myGoogleName = user.displayName || '';
+        state.gateStage = 'onboarding';
+        if(!state.accessGranted) renderGate();
+      }
     });
   }
 
@@ -1063,14 +1094,16 @@ enableIndexedDbPersistence(db).catch(err => {
     state.accessGranted = false;
     state.isAdminVerified = false;
     state.myEmail = null;
+    state.myGoogleEmail = null;
+    state.myGoogleName = null;
     state.myRequestId = null;
     state.houseSyncStarted = false;
     state.houses = [];
-    state.gateStage = 'signup';
-    try{ localStorage.removeItem('ttp_myEmail'); } catch(err){}
+    state.gateStage = 'signin';
     appRoot.style.display = 'none';
     gateView.style.display = 'flex';
     renderGate();
+    firebaseSignOut(auth).catch(err => console.error('Sign out failed', err));
   }
   signOutBtn.addEventListener('click', () => signOut());
 
@@ -1245,7 +1278,7 @@ enableIndexedDbPersistence(db).catch(err => {
   // ---------- House view (rooms gallery) ----------
   function renderHouseView(){
     const h = currentHouse();
-    houseTitleEl.textContent = h.name;
+    if(document.activeElement !== houseTitleEl) houseTitleEl.textContent = h.name;
     renderRoomGrid();
     renderHouseInviteChips();
   }
@@ -1427,11 +1460,25 @@ enableIndexedDbPersistence(db).catch(err => {
 
   function renderRoom(){
     const h = currentHouse(), r = currentRoom();
-    boardTitleEl.textContent = r.name;
+    if(document.activeElement !== boardTitleEl) boardTitleEl.textContent = r.name;
     roomCrumb.textContent = h.name + ' /';
     applyAtmosphere(r);
-    clearCanvasCards();
+
+    // Only the one card actively being typed into (if any) is left alone —
+    // every other card, including ones changed by someone else, rebuilds
+    // normally. This is what lets a collaborator's edits actually arrive
+    // instead of being blocked just because you have some unrelated field
+    // focused somewhere in the room.
+    const activeCardEl = document.activeElement && document.activeElement.isContentEditable
+      ? document.activeElement.closest('.card')
+      : null;
+    const preservedId = activeCardEl ? activeCardEl.dataset.id : null;
+
+    [...canvas.querySelectorAll('.card')].forEach(el => {
+      if(el.dataset.id !== preservedId) el.remove();
+    });
     r.cards.forEach(c => {
+      if(c.id === preservedId) return;
       try{
         canvas.appendChild(buildCardEl(c));
       } catch(err){
@@ -2376,6 +2423,28 @@ enableIndexedDbPersistence(db).catch(err => {
   const CARD_MIN_H = 90;
   const CARD_MAX_H = 640;
 
+  // Collapses a burst of mousemove events (which can fire far more often
+  // than the screen actually redraws) down to a single visual update per
+  // frame. This is what fixes dragging/resizing/rotating feeling stuck or
+  // stuttery — the data itself still updates on every event for accuracy,
+  // only the DOM/arrow work is batched.
+  let dragFrame = null;
+  function queueDragFrame(fn){
+    dragFrame = fn;
+    if(dragFrame === fn && !queueDragFrame._scheduled){
+      queueDragFrame._scheduled = true;
+      requestAnimationFrame(() => {
+        queueDragFrame._scheduled = false;
+        const f = dragFrame;
+        dragFrame = null;
+        if(f) f();
+      });
+    }
+  }
+  function cardHasArrows(cardId){
+    return currentRoom().arrows.some(a => a.from.cardId === cardId || a.to.cardId === cardId);
+  }
+
   function onCardMouseDown(e, card, el){
     if(state.selectedArrowId){ state.selectedArrowId = null; drawOverlay(); }
     if(state.arrowMode){
@@ -2391,8 +2460,10 @@ enableIndexedDbPersistence(db).catch(err => {
       const ang = Math.atan2(e.clientY - rotatingCard.center.y, e.clientX - rotatingCard.center.x) * 180 / Math.PI;
       const newRot = rotatingCard.startRotation + (ang - rotatingCard.startPointerAngle);
       rotatingCard.card.rotation = newRot;
-      rotatingCard.el.style.transform = `rotate(${newRot}deg)`;
-      scheduleSaveBoard();
+      queueDragFrame(() => {
+        rotatingCard.el.style.transform = `rotate(${newRot}deg)`;
+        scheduleSaveBoard();
+      });
       return;
     }
     if(resizingCard){
@@ -2401,10 +2472,12 @@ enableIndexedDbPersistence(db).catch(err => {
       const newH = Math.min(CARD_MAX_H, Math.max(CARD_MIN_H, resizingCard.startHeight + (e.clientY - resizingCard.startY) / zoom));
       resizingCard.card.w = newW;
       resizingCard.card.h = newH;
-      resizingCard.el.style.width = newW + 'px';
-      resizingCard.el.style.height = newH + 'px';
-      drawOverlay();
-      scheduleSaveBoard();
+      queueDragFrame(() => {
+        resizingCard.el.style.width = newW + 'px';
+        resizingCard.el.style.height = newH + 'px';
+        if(cardHasArrows(resizingCard.card.id)) drawOverlay();
+        scheduleSaveBoard();
+      });
       return;
     }
     if(dragCandidate && !dragging){
@@ -2419,10 +2492,13 @@ enableIndexedDbPersistence(db).catch(err => {
     const zoom = currentRoom().zoom;
     dragging.card.x += e.movementX / zoom;
     dragging.card.y += e.movementY / zoom;
-    dragging.el.style.left = dragging.card.x + 'px';
-    dragging.el.style.top = dragging.card.y + 'px';
-    drawOverlay();
-    scheduleSaveBoard();
+    queueDragFrame(() => {
+      if(!dragging) return;
+      dragging.el.style.left = dragging.card.x + 'px';
+      dragging.el.style.top = dragging.card.y + 'px';
+      if(cardHasArrows(dragging.card.id)) drawOverlay();
+      scheduleSaveBoard();
+    });
   });
   window.addEventListener('mouseup', () => {
     if(dragging){ dragging.el.classList.remove('dragging'); }
@@ -2828,6 +2904,7 @@ enableIndexedDbPersistence(db).catch(err => {
       renderHouseInviteChips();
       renderInvitePopoverBody(pop);
       scheduleSaveBoard();
+      sendInviteEmail(email, h.name, `You've been added to "${h.name}" on The Third Place. Sign in with Google using this email to see it.`);
     }
     addBtn.addEventListener('click', submitInvite);
     emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') submitInvite(); });
@@ -2898,34 +2975,47 @@ enableIndexedDbPersistence(db).catch(err => {
   }
 
   function renderGate(){
-    if(state.gateStage === 'signup') renderGateSignup();
-    else if(state.gateStage === 'signin') renderGateSignIn();
+    if(state.gateStage === 'onboarding') renderGateOnboarding();
     else if(state.gateStage === 'pending') renderGatePending();
-    else renderGateAdminLogin();
+    else renderGateSignIn();
   }
 
-  function openAdminGate(){
-    if(state.isAdminVerified){ enterApp(); return; }
-    state.gateStage = 'adminLogin';
-    renderGate();
+  function googleSignIn(onError){
+    signInWithPopup(auth, googleProvider).catch(err => {
+      console.error('Google sign-in failed', err);
+      if(onError) onError();
+    });
   }
-  document.getElementById('gateAdminCorner').addEventListener('click', openAdminGate);
 
-  function renderGateSignup(){
+  function renderGateSignIn(){
     gateCard.className = 'gate-card';
     const inviteBanner = state.inviteContext
-      ? `<div class="gate-invite-banner">You've been invited to join <strong>${escapeHtml(state.inviteContext.houseName)}</strong> — sign up below to get in.</div>`
+      ? `<div class="gate-invite-banner">You've been invited to join <strong>${escapeHtml(state.inviteContext.houseName)}</strong> — sign in below to get in.</div>`
       : '';
     gateCard.innerHTML = `
       <div class="gate-product-mark">The Third Place</div>
       ${inviteBanner}
       <div class="gate-eyebrow">Invite only</div>
-      <h1>Request access to ${escapeHtml(state.communityName)}</h1>
-      <p class="sub">This board is exclusive to our community. Tell us a little about you and the admin will review your request.</p>
-      <div class="gate-row-2">
-        <div class="gate-field"><label>Name</label><input type="text" id="gateName" placeholder="Your name"></div>
-        <div class="gate-field"><label>Email</label><input type="email" id="gateEmail" placeholder="you@email.com"></div>
-      </div>
+      <h1>${escapeHtml(state.communityName)}</h1>
+      <p class="sub">This board is exclusive to our community. Sign in with Google to request access, or to get straight in if you're already a member.</p>
+      <div class="gate-error" id="gateSignInError">Something went wrong signing you in. Please try again.</div>
+      <button class="gate-google-btn" id="gateGoogleBtn">
+        <svg viewBox="0 0 48 48" width="18" height="18"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.6 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.5C29.6 36 26.9 37 24 37c-5.2 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 40.6 16.3 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.6 5.5C41.5 36 44 30.5 44 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+        Sign in with Google
+      </button>
+    `;
+    document.getElementById('gateGoogleBtn').addEventListener('click', () => {
+      googleSignIn(() => document.getElementById('gateSignInError').classList.add('visible'));
+    });
+  }
+
+  function renderGateOnboarding(){
+    gateCard.className = 'gate-card';
+    gateCard.innerHTML = `
+      <div class="gate-product-mark">The Third Place</div>
+      <div class="gate-eyebrow">Almost there, ${escapeHtml((state.myGoogleName || '').split(' ')[0] || '')}</div>
+      <h1>Tell us about your ideas</h1>
+      <p class="sub">Signed in as ${escapeHtml(state.myGoogleEmail)}. A couple of quick, optional questions before your request goes to the admin.</p>
       <div class="gate-field"><label>What brings you here? <span style="font-weight:400;">(optional)</span></label><textarea id="gateNote" placeholder="How you heard about us, what you're working on…"></textarea></div>
       <div class="gate-mcq" id="mcqIdea">
         <label>What best describes your ideas?</label>
@@ -2940,7 +3030,6 @@ enableIndexedDbPersistence(db).catch(err => {
         <div class="gate-mcq-options" id="mcqWeird2Opts"></div>
       </div>
       <button class="gate-submit" id="gateSubmitBtn" style="max-width:220px;">Request access</button>
-      <div class="gate-footer-link">Already have an account? <a id="gateToSignIn">Sign in</a></div>
     `;
 
     const answers = {ideaType: null, weird1: null, weird2: null};
@@ -2964,124 +3053,30 @@ enableIndexedDbPersistence(db).catch(err => {
     buildChips('mcqWeird2Opts', WEIRD_Q2.options, 'weird2');
 
     document.getElementById('gateSubmitBtn').addEventListener('click', () => {
-      const name = document.getElementById('gateName').value.trim();
-      const email = document.getElementById('gateEmail').value.trim();
       const note = document.getElementById('gateNote').value.trim();
-      if(!name || !email){
-        document.getElementById(name ? 'gateEmail' : 'gateName').focus();
-        return;
-      }
-      const req = {id:genId('req'), name, email, note, ideaType: answers.ideaType, weird1: answers.weird1, weird2: answers.weird2};
+      const req = {
+        id: genId('req'), name: state.myGoogleName || state.myGoogleEmail, email: state.myGoogleEmail,
+        note, ideaType: answers.ideaType, weird1: answers.weird1, weird2: answers.weird2
+      };
       state.pendingRequests.push(req);
       state.myRequestId = req.id;
       state.gateStage = 'pending';
       renderGate();
       scheduleSaveGate();
-      try{ localStorage.setItem('ttp_myEmail', email); } catch(err){}
-    });
-    document.getElementById('gateToSignIn').addEventListener('click', () => {
-      state.gateStage = 'signin';
-      renderGate();
-    });
-  }
-
-  function renderGateSignIn(){
-    gateCard.className = 'gate-card';
-    gateCard.innerHTML = `
-      <div class="gate-product-mark">The Third Place</div>
-      <div class="gate-eyebrow">Welcome back</div>
-      <h1>Sign in to ${escapeHtml(state.communityName)}</h1>
-      <p class="sub">Already a member or waiting on a request? Enter the email you used and we'll take you there.</p>
-      <div class="gate-error" id="gateSignInError">We couldn't find an account with that email.</div>
-      <div class="gate-field"><label>Email</label><input type="email" id="gateSignInEmail" placeholder="you@email.com"></div>
-      <button class="gate-submit" id="gateSignInBtn" style="max-width:220px;">Sign in</button>
-      <div class="gate-footer-link">New here? <a id="gateToSignup">Request access</a></div>
-    `;
-    const err = document.getElementById('gateSignInError');
-    const emailInput = document.getElementById('gateSignInEmail');
-    function attempt(){
-      const email = emailInput.value.trim();
-      if(!email){ emailInput.focus(); return; }
-      const mem = state.members.find(m => m.email.toLowerCase() === email.toLowerCase());
-      const pending = state.pendingRequests.find(r => r.email.toLowerCase() === email.toLowerCase());
-      if(mem){
-        err.classList.remove('visible');
-        state.myRequestId = mem.id;
-        state.myEmail = mem.email;
-        try{ localStorage.setItem('ttp_myEmail', mem.email); } catch(e){}
-        enterApp();
-      } else if(pending){
-        err.classList.remove('visible');
-        state.myRequestId = pending.id;
-        try{ localStorage.setItem('ttp_myEmail', pending.email); } catch(e){}
-        state.gateStage = 'pending';
-        renderGate();
-      } else {
-        err.classList.add('visible');
-      }
-    }
-    document.getElementById('gateSignInBtn').addEventListener('click', attempt);
-    emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') attempt(); });
-    document.getElementById('gateToSignup').addEventListener('click', () => {
-      state.gateStage = 'signup';
-      renderGate();
+      sendInviteEmail(req.email, state.communityName, 'Your request is being reviewed');
     });
   }
 
   function renderGatePending(){
     gateCard.className = 'gate-card';
     const mine = state.pendingRequests.find(r => r.id === state.myRequestId);
-    const name = mine ? mine.name : 'there';
+    const name = mine ? mine.name : (state.myGoogleName || 'there');
     gateCard.innerHTML = `
       <div class="gate-product-mark">The Third Place</div>
       <div class="gate-pending-icon"><svg viewBox="0 0 24 24"><path d="M12 2 2 12h3v9h6v-6h2v6h6v-9h3z"/></svg></div>
-      <h1>Thanks, ${escapeHtml(name)}</h1>
-      <p class="sub">Your request to join ${escapeHtml(state.communityName)} is with the admin now. Sit tight — you'll get access once it's reviewed.</p>
-      <div class="gate-footer-link"><a id="gateBackToSignup">← Back to sign up</a></div>
+      <h1>Thanks, ${escapeHtml(name.split(' ')[0])}</h1>
+      <p class="sub">Your request to join ${escapeHtml(state.communityName)} is with the admin now. Sit tight — you'll get in automatically the moment it's approved, no need to refresh.</p>
     `;
-    document.getElementById('gateBackToSignup').addEventListener('click', () => {
-      state.gateStage = 'signup';
-      renderGate();
-    });
-  }
-
-  function renderGateAdminLogin(){
-    gateCard.className = 'gate-card';
-    gateCard.innerHTML = `
-      <div class="gate-product-mark">The Third Place</div>
-      <div class="gate-eyebrow">Admin</div>
-      <h1>Sign in as admin</h1>
-      <p class="sub">This panel is restricted to the community admin.</p>
-      <div class="gate-error" id="gateAdminError">That email or password isn't right.</div>
-      <div class="gate-row-2">
-        <div class="gate-field"><label>Admin email</label><input type="email" id="gateAdminEmail" placeholder="admin@email.com"></div>
-        <div class="gate-field"><label>Password</label><input type="password" id="gateAdminPassword" placeholder="••••••••"></div>
-      </div>
-      <button class="gate-submit" id="gateAdminContinue" style="max-width:220px;">Continue</button>
-      <div class="gate-footer-link"><a id="gateBackFromAdminLogin">← Back</a></div>
-    `;
-    const err = document.getElementById('gateAdminError');
-    const emailInput = document.getElementById('gateAdminEmail');
-    const passInput = document.getElementById('gateAdminPassword');
-    function attempt(){
-      const email = emailInput.value.trim().toLowerCase();
-      const pass = passInput.value;
-      if(email === ADMIN_EMAIL && pass === ADMIN_PASSWORD){
-        state.isAdminVerified = true;
-        state.myEmail = ADMIN_EMAIL;
-        err.classList.remove('visible');
-        enterApp();
-      } else {
-        err.classList.add('visible');
-      }
-    }
-    document.getElementById('gateAdminContinue').addEventListener('click', attempt);
-    emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') passInput.focus(); });
-    passInput.addEventListener('keydown', e => { if(e.key === 'Enter') attempt(); });
-    document.getElementById('gateBackFromAdminLogin').addEventListener('click', () => {
-      state.gateStage = state.myRequestId ? 'pending' : 'signup';
-      renderGate();
-    });
   }
 
   function renderInsideRooms(){
