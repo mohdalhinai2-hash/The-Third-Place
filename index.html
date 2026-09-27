@@ -228,7 +228,7 @@
   .rail-draw .rail-icon{background:#fde3e0;border-color:#f0a89f;color:#8a2e1e;}
   .rail-draw.active .rail-icon{background:var(--accent);border-color:var(--accent);color:#fff;}
 
-  .draw-toolbar{display:none;align-items:center;gap:10px;background:var(--surface,#faf8f3);border-bottom:1px solid var(--surface-border,#e6e1d5);padding:8px 16px;}
+  .draw-toolbar{display:none;align-items:center;gap:8px;background:var(--surface,#fff);border:1px solid var(--surface-border,#e2dac6);border-radius:8px;padding:5px 10px;margin-right:8px;}
   .draw-toolbar.visible{display:flex;}
   .draw-toolbar-label{font-size:10.5px;color:var(--ink-soft);font-weight:600;}
   .draw-thickness-btn{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--surface-border,#ddd2c4);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
@@ -607,6 +607,20 @@
 
         <div class="spacer"></div>
 
+        <div class="draw-toolbar" id="drawToolbar">
+          <span class="draw-toolbar-label">Thickness</span>
+          <button class="draw-thickness-btn" data-thickness="2" title="Thin"><span style="width:3px;height:3px;"></span></button>
+          <button class="draw-thickness-btn selected" data-thickness="4" title="Medium"><span style="width:6px;height:6px;"></span></button>
+          <button class="draw-thickness-btn" data-thickness="7" title="Thick"><span style="width:10px;height:10px;"></span></button>
+          <div class="draw-toolbar-divider"></div>
+          <button class="draw-color-btn selected" data-color="#14100c" style="background:#14100c" title="Ink"></button>
+          <button class="draw-color-btn" data-color="#4b1e9e" style="background:#4b1e9e" title="Violet"></button>
+          <button class="draw-color-btn" data-color="#ff5a36" style="background:#ff5a36" title="Coral"></button>
+          <button class="draw-color-btn" data-color="#1e8f5f" style="background:#1e8f5f" title="Green"></button>
+          <div class="draw-toolbar-divider"></div>
+          <button class="draw-eraser-btn" id="eraserBtn" title="Click a line to erase it">🧽 Eraser</button>
+        </div>
+
         <div class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="text" id="searchInput" placeholder="Search this room…">
@@ -656,20 +670,6 @@
           <button class="rail-btn rail-draw" id="drawBtn" title="Draw a freehand line">
             <span class="rail-icon">✏️</span><span class="rail-label">Draw</span>
           </button>
-        </div>
-
-        <div class="draw-toolbar" id="drawToolbar">
-          <span class="draw-toolbar-label">Thickness</span>
-          <button class="draw-thickness-btn" data-thickness="2" title="Thin"><span style="width:3px;height:3px;"></span></button>
-          <button class="draw-thickness-btn selected" data-thickness="4" title="Medium"><span style="width:6px;height:6px;"></span></button>
-          <button class="draw-thickness-btn" data-thickness="7" title="Thick"><span style="width:10px;height:10px;"></span></button>
-          <div class="draw-toolbar-divider"></div>
-          <button class="draw-color-btn selected" data-color="#14100c" style="background:#14100c" title="Ink"></button>
-          <button class="draw-color-btn" data-color="#4b1e9e" style="background:#4b1e9e" title="Violet"></button>
-          <button class="draw-color-btn" data-color="#ff5a36" style="background:#ff5a36" title="Coral"></button>
-          <button class="draw-color-btn" data-color="#1e8f5f" style="background:#1e8f5f" title="Green"></button>
-          <div class="draw-toolbar-spacer"></div>
-          <button class="draw-eraser-btn" id="eraserBtn" title="Click a line to erase it">🧽 Eraser</button>
         </div>
 
         <div class="canvas-wrap" id="canvasWrap">
