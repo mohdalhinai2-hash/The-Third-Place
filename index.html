@@ -139,6 +139,12 @@
   .gate-admin-note{font-size:11.5px;color:#a39c86;margin-top:16px;line-height:1.5;}
   .gate-google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:1px solid #dadce0;color:#3c4043;border-radius:8px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:6px;}
   .gate-google-btn:hover{background:#f7f8f8;box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .gate-divider{display:flex;align-items:center;gap:12px;margin:14px 0 8px;color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.08em;}
+  .gate-divider::before,.gate-divider::after{content:'';flex:1;height:1px;background:var(--surface-border,#e2dac6);}
+  .gate-info{display:none;background:#e6f4ec;color:#0f6b41;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:12px;}
+  .gate-info.visible{display:block;}
+  .gate-submit:disabled{opacity:.6;cursor:default;}
+  .gate-footer-link a{cursor:pointer;color:var(--accent);font-weight:600;}
 
   /* ---------- Sidebar ---------- */
   .sidebar{width:222px;flex-shrink:0;background:var(--sidebar-bg);color:var(--paper);display:flex;flex-direction:column;padding:18px 14px;overflow:hidden;transition:width .16s ease, padding .16s ease;position:relative;}
@@ -688,11 +694,13 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
-  getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, query, where,
-  enableIndexedDbPersistence
+  getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, collection, query, where, limit,
+  runTransaction, enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as firebaseSignOut
+  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as firebaseSignOut,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification,
+  sendPasswordResetEmail, updateProfile
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -887,49 +895,253 @@ const googleProvider = new GoogleAuthProvider();
   let applyingRemoteBoard = false;
   let applyingRemoteGate = false;
   const houseSaveTimers = {};
-  const pendingSaveData = {}; // houseId -> house object not yet CONFIRMED saved
+  const pendingSaveData = {};   // houseId -> live house object with edits not yet confirmed saved
+  const lastServer = {};        // houseId -> serialized house as last confirmed on the server
 
-  // The one place that actually talks to Firestore for a house. Keeps the
-  // house marked "pending" for the entire round trip — not just until the
-  // request is sent — so an incoming snapshot can never be mistaken for
-  // more current than a write that's still in flight. That gap (marking a
-  // save "done" the instant it started, instead of when it finished) was
-  // the actual cause of new cards vanishing after leaving and re-entering
-  // a room.
-  function doSaveHouse(h){
+  // ---------- Multi-user persistence: merge helpers (pure) ----------
+  // Each house is ONE Firestore document. To let several people edit it at
+  // once without overwriting each other, every write is a three-way merge
+  // (what the server had last time, what I have, what the server has now),
+  // done field-by-field for cards/arrows/drawings/rooms. View state (pan,
+  // zoom, undo history) stays on this device only and is never saved.
+  const LOCAL_ONLY_ROOM_FIELDS = ['history', 'redo', 'pan', 'zoom'];
+
+  function serializeHouse(h){
+    // JSON round-trip also drops any `undefined`, which Firestore rejects.
+    const copy = JSON.parse(JSON.stringify(h));
+    (copy.rooms || []).forEach(r => LOCAL_ONLY_ROOM_FIELDS.forEach(k => delete r[k]));
+    return copy;
+  }
+
+  function deepEqual(a, b){
+    if(a === b) return true;
+    if(a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+    if(Array.isArray(a) !== Array.isArray(b)) return false;
+    if(Array.isArray(a)) return a.length === b.length && a.every((v, i) => deepEqual(v, b[i]));
+    const ka = Object.keys(a), kb = Object.keys(b);
+    return ka.length === kb.length && ka.every(k => Object.prototype.hasOwnProperty.call(b, k) && deepEqual(a[k], b[k]));
+  }
+
+  // Field-level three-way merge of two plain objects.
+  function mergeFields(base, local, remote, skipKeys){
+    const out = {};
+    const keys = new Set([...Object.keys(local || {}), ...Object.keys(remote || {}), ...Object.keys(base || {})]);
+    keys.forEach(k => {
+      if(skipKeys && skipKeys.includes(k)) return;
+      const lv = local ? local[k] : undefined;
+      const rv = remote ? remote[k] : undefined;
+      const bv = base ? base[k] : undefined;
+      let val;
+      if(deepEqual(lv, rv)) val = lv;          // already agree
+      else if(deepEqual(lv, bv)) val = rv;     // only the other side changed it
+      else val = lv;                           // I changed it (mine wins a true conflict)
+      if(val !== undefined) out[k] = val;
+    });
+    return out;
+  }
+
+  // Merges lists of {id, ...} items (cards, arrows, drawings, rooms...).
+  function mergeKeyed(baseList, localList, remoteList, mergeItem){
+    const idx = list => new Map((list || []).map(x => [x.id, x]));
+    const B = idx(baseList), L = idx(localList), R = idx(remoteList);
+    const order = [...(remoteList || []).map(x => x.id), ...(localList || []).map(x => x.id)];
+    const seen = new Set();
+    const out = [];
+    order.forEach(id => {
+      if(seen.has(id)) return;
+      seen.add(id);
+      const b = B.get(id), l = L.get(id), r = R.get(id);
+      if(l && r) out.push(mergeItem(b, l, r));
+      else if(l && !r){
+        if(!b) out.push(l);                     // I added it
+        else if(!deepEqual(l, b)) out.push(l);  // they deleted it, but I've edited it since — keep mine
+        // else: they deleted it and I hadn't touched it — stays deleted
+      } else if(!l && r){
+        if(!b) out.push(r);                     // they added it
+        // else: I deleted it — stays deleted
+      }
+    });
+    return out;
+  }
+
+  function mergeSet(base, local, remote){
+    const B = new Set(base || []), L = new Set(local || []), R = new Set(remote || []);
+    const out = [];
+    new Set([...B, ...L, ...R]).forEach(x => {
+      if(!B.has(x)){ if(L.has(x) || R.has(x)) out.push(x); }   // added by either side
+      else if(L.has(x) && R.has(x)) out.push(x);               // removed by either side → gone
+    });
+    return out;
+  }
+
+  function mergeRoom(b, l, r){
+    const base = b || {};
+    const out = mergeFields(b, l, r, ['cards', 'arrows', 'drawings']);
+    out.cards = mergeKeyed(base.cards, l.cards, r.cards, mergeFields);
+    out.arrows = mergeKeyed(base.arrows, l.arrows, r.arrows, mergeFields);
+    out.drawings = mergeKeyed(base.drawings, l.drawings, r.drawings, mergeFields);
+    return out;
+  }
+
+  function mergeHouse3(base, local, remote){
+    const b = base || {};
+    const out = mergeFields(b, local, remote, ['rooms', 'memberEmails', 'invitedMembers']);
+    out.rooms = mergeKeyed(b.rooms, local.rooms, remote.rooms, mergeRoom);
+    out.invitedMembers = mergeKeyed(b.invitedMembers, local.invitedMembers, remote.invitedMembers, mergeFields);
+    out.memberEmails = mergeSet(b.memberEmails, local.memberEmails, remote.memberEmails);
+    return out;
+  }
+
+  // ---- Applying a merged result onto live local objects, in place, so
+  // every card/room object the DOM's event handlers hold on to stays valid.
+  function replaceFields(target, source, keep){
+    Object.keys(target).forEach(k => {
+      if(keep && keep.includes(k)) return;
+      if(!(k in source)) delete target[k];
+    });
+    Object.keys(source).forEach(k => {
+      if(keep && keep.includes(k)) return;
+      if(!deepEqual(target[k], source[k])) target[k] = source[k];
+    });
+  }
+  function syncListInPlace(targetList, sourceList, protectId){
+    const existing = new Map(targetList.map(x => [x.id, x]));
+    const next = sourceList.map(src => {
+      const cur = existing.get(src.id);
+      if(!cur) return src;
+      if(cur.id !== protectId) replaceFields(cur, src);
+      return cur;
+    });
+    // A card being typed into keeps its local copy even if it just vanished remotely
+    targetList.length = 0;
+    next.forEach(x => targetList.push(x));
+  }
+  function hydrateRoom(r){
+    if(!Array.isArray(r.cards)) r.cards = [];
+    if(!Array.isArray(r.arrows)) r.arrows = [];
+    if(!Array.isArray(r.drawings)) r.drawings = [];
+    if(!Array.isArray(r.history)) r.history = [];
+    if(!Array.isArray(r.redo)) r.redo = [];
+    if(!r.pan) r.pan = {x: 140, y: 100};
+    if(!r.zoom) r.zoom = 1;
+    return r;
+  }
+  function hydrateHouse(serialized){
+    const h = JSON.parse(JSON.stringify(serialized));
+    if(!Array.isArray(h.rooms)) h.rooms = [];
+    if(!Array.isArray(h.memberEmails)) h.memberEmails = [];
+    if(!Array.isArray(h.invitedMembers)) h.invitedMembers = [];
+    h.rooms.forEach(hydrateRoom);
+    return h;
+  }
+  function applyMergedToLocal(localHouse, merged, protectCardId){
+    replaceFields(localHouse, merged, ['rooms']);
+    const existing = new Map(localHouse.rooms.map(r => [r.id, r]));
+    const nextRooms = merged.rooms.map(src => {
+      const cur = existing.get(src.id);
+      if(!cur) return hydrateRoom(JSON.parse(JSON.stringify(src)));
+      replaceFields(cur, src, [...LOCAL_ONLY_ROOM_FIELDS, 'cards', 'arrows', 'drawings']);
+      syncListInPlace(cur.cards, src.cards || [], protectCardId);
+      syncListInPlace(cur.arrows, src.arrows || []);
+      syncListInPlace(cur.drawings, src.drawings || []);
+      return cur;
+    });
+    localHouse.rooms.length = 0;
+    nextRooms.forEach(r => localHouse.rooms.push(r));
+  }
+
+  // The card currently being typed into (text field, note, input) — its DOM
+  // and data object are left alone when someone else's changes arrive.
+  function getFocusedCardId(){
+    const a = document.activeElement;
+    if(!a || !(a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return null;
+    const c = a.closest && a.closest('.card');
+    return c ? c.dataset.id : null;
+  }
+
+  // Never rebuild the canvas out from under someone mid-drag / mid-stroke.
+  let deferredRemoteRender = false;
+  function isInteracting(){
+    return !!(dragging || resizingCard || rotatingCard || drawingStroke || drawingArrow || panning);
+  }
+  function reflectAfterRemoteChange(){
+    if(isInteracting()){ deferredRemoteRender = true; return; }
+    applyingRemoteBoard = true;
+    try{ reflectRemoteBoardChange(); } finally { applyingRemoteBoard = false; }
+  }
+  window.addEventListener('mouseup', () => setTimeout(() => {
+    if(deferredRemoteRender && !isInteracting()){ deferredRemoteRender = false; reflectAfterRemoteChange(); }
+  }, 0));
+
+  // The one place that saves a house. Merges with whatever is on the server
+  // right now inside a transaction, so two people editing at the same time
+  // both keep their changes instead of the last save erasing the other's.
+  async function doSaveHouse(h){
     pendingSaveData[h.id] = h;
-    return setDoc(doc(db, 'houses', h.id), h)
-      .then(() => {
-        // Only clear it if nothing newer has been scheduled in the meantime.
-        if(pendingSaveData[h.id] === h) delete pendingSaveData[h.id];
-      })
-      .catch(err => console.error('Save failed', err));
+    const sent = serializeHouse(h);
+    let merged = null;
+    try{
+      merged = await runTransaction(db, async tx => {
+        const ref = doc(db, 'houses', h.id);
+        const snap = await tx.get(ref);
+        if(!snap.exists()){ tx.set(ref, sent); return sent; }
+        const m = mergeHouse3(lastServer[h.id], sent, serializeHouse(snap.data()));
+        tx.set(ref, m);
+        return m;
+      });
+    } catch(err){
+      // Offline, or too much contention: fall back to a plain write, which the
+      // local cache keeps durable and syncs as soon as we're back online.
+      console.warn('Merged save unavailable, writing directly:', err && err.code);
+      try{
+        await setDoc(doc(db, 'houses', h.id), sent);
+        merged = sent;
+      } catch(err2){ console.error('Save failed', err2); return; }
+    }
+    lastServer[h.id] = merged;
+    const nowLocal = serializeHouse(h);
+    if(deepEqual(nowLocal, sent) && pendingSaveData[h.id] === h) delete pendingSaveData[h.id];
+    // Bring in whatever other people changed while this was saving, without
+    // disturbing anything I've edited since.
+    const reconciled = mergeHouse3(sent, nowLocal, merged);
+    if(!deepEqual(reconciled, nowLocal)){
+      applyMergedToLocal(h, reconciled, getFocusedCardId());
+      reflectAfterRemoteChange();
+    }
+  }
+  function scheduleSaveHouse(h){
+    pendingSaveData[h.id] = h;
+    clearTimeout(houseSaveTimers[h.id]);
+    houseSaveTimers[h.id] = setTimeout(() => doSaveHouse(h), 900);
   }
   function scheduleSaveBoard(){
     const h = currentHouse();
     if(!h || applyingRemoteBoard) return;
-    pendingSaveData[h.id] = h;
-    clearTimeout(houseSaveTimers[h.id]);
-    houseSaveTimers[h.id] = setTimeout(() => doSaveHouse(h), 900);
+    scheduleSaveHouse(h);
   }
   function saveHouseNow(h){
     clearTimeout(houseSaveTimers[h.id]);
     return doSaveHouse(h);
   }
-  // Immediately writes any edit that's still sitting in the 900ms debounce
-  // window, instead of letting it get silently dropped by a sign-out or a
-  // closed tab. Fires synchronously enough that the request is issued
-  // before the page can finish unloading.
-  function flushPendingSaves(){
+  // Writes any edit still waiting in the 900ms window. When the page is
+  // actually going away, only a single plain write can start in time (and the
+  // local cache keeps it durable); otherwise use the normal merged save.
+  function flushPendingSaves(unloading){
     Object.keys(pendingSaveData).forEach(id => {
       clearTimeout(houseSaveTimers[id]);
-      doSaveHouse(pendingSaveData[id]);
+      const h = pendingSaveData[id];
+      if(unloading){
+        delete pendingSaveData[id];
+        setDoc(doc(db, 'houses', id), serializeHouse(h)).catch(err => console.error('Save failed', err));
+      } else {
+        doSaveHouse(h);
+      }
     });
   }
-  window.addEventListener('beforeunload', flushPendingSaves);
-  window.addEventListener('pagehide', flushPendingSaves);
+  window.addEventListener('beforeunload', () => flushPendingSaves(true));
+  window.addEventListener('pagehide', () => flushPendingSaves(true));
   document.addEventListener('visibilitychange', () => {
-    if(document.visibilityState === 'hidden') flushPendingSaves();
+    if(document.visibilityState === 'hidden') flushPendingSaves(false);
   });
 
   function scheduleSaveGate(){
@@ -987,28 +1199,51 @@ const googleProvider = new GoogleAuthProvider();
     state.houseSyncStarted = true;
     state.myEmail = email;
     const q = query(HOUSES_COL, where('memberEmails', 'array-contains', email));
+    let firstSnapshotDone = false;
     unsubscribeHouses = onSnapshot(q, async snap => {
+      const focusedId = getFocusedCardId();
+      let changed = false;
       applyingRemoteBoard = true;
-      let houses = snap.docs.map(d => d.data());
-      if(!houses.length && !snap.metadata.fromCache){
+      try{
+        const presentIds = new Set();
+        snap.docs.forEach(d => {
+          presentIds.add(d.id);
+          if(d.metadata.hasPendingWrites) return;      // just the echo of my own unsent write
+          const remote = serializeHouse(d.data());
+          const local = state.houses.find(h => h.id === d.id);
+          if(!local){
+            state.houses.push(hydrateHouse(remote));
+            lastServer[d.id] = remote;
+            changed = true;
+            return;
+          }
+          const mine = serializeHouse(local);
+          const merged = mergeHouse3(lastServer[d.id], mine, remote);
+          lastServer[d.id] = remote;
+          if(!deepEqual(merged, mine)){
+            applyMergedToLocal(local, merged, focusedId);
+            changed = true;
+          }
+          // I have edits the server doesn't (e.g. a card I'm still typing in) — make sure they get saved
+          if(!deepEqual(merged, remote)) scheduleSaveHouse(local);
+        });
+        // Houses that are no longer mine (deleted, or I was removed) — unless still being created here
+        const before = state.houses.length;
+        state.houses = state.houses.filter(h => presentIds.has(h.id) || pendingSaveData[h.id] || !lastServer[h.id]);
+        if(state.houses.length !== before) changed = true;
+      } finally { applyingRemoteBoard = false; }
+
+      if(!snap.docs.length && !snap.metadata.fromCache && !state.houses.length){
         // Brand-new user with nothing yet — give them their own starter house.
         const starter = buildStarterHouse(email);
-        await saveHouseNow(starter);
-        houses = [starter];
+        state.houses.push(starter);
+        changed = true;
+        saveHouseNow(starter);
       }
-      // Any house with a save still sitting in the debounce window hasn't
-      // reached Firestore yet, so this snapshot can't possibly reflect it —
-      // e.g. adding an Image/Calendar/Book/Bookshelf card doesn't focus a
-      // text field, so a focus-based check wouldn't catch this case anyway.
-      // Keep our own newer local copy instead of overwriting it with the
-      // server's now-stale version.
-      houses = houses.map(h => pendingSaveData[h.id] || h);
-      Object.keys(pendingSaveData).forEach(id => {
-        if(!houses.find(h => h.id === id)) houses.push(pendingSaveData[id]);
-      });
-      state.houses = houses;
-      reflectRemoteBoardChange();
-      applyingRemoteBoard = false;
+      if(changed || !firstSnapshotDone){
+        firstSnapshotDone = true;
+        reflectAfterRemoteChange();
+      }
     }, err => console.error('House sync error', err));
   }
 
@@ -1044,44 +1279,7 @@ const googleProvider = new GoogleAuthProvider();
     // for our own localStorage tracking. This fires immediately on load
     // with whoever's still signed in (or null), and again any time sign-in
     // state changes.
-    onAuthStateChanged(auth, user => {
-      if(!user){
-        if(!state.accessGranted) renderGate();
-        return;
-      }
-      // Normalized once, here, at the source — every place that stores or
-      // queries by email downstream uses this same lowercase form, so a
-      // casing difference between Google's version and an older manually
-      // typed one can never cause a house to silently stop matching again.
-      const email = user.email.toLowerCase();
-      if(email === ADMIN_EMAIL){
-        state.isAdminVerified = true;
-        state.myEmail = email;
-        state.myGoogleName = user.displayName || '';
-        if(!state.accessGranted) enterApp();
-        return;
-      }
-      const mem = state.members.find(m => m.email.toLowerCase() === email);
-      const pending = state.pendingRequests.find(r => r.email.toLowerCase() === email);
-      if(mem){
-        state.myRequestId = mem.id;
-        state.myEmail = email;
-        if(!state.accessGranted) enterApp();
-      } else if(pending){
-        state.myRequestId = pending.id;
-        state.myGoogleEmail = email;
-        state.myGoogleName = user.displayName || '';
-        state.gateStage = 'pending';
-        if(!state.accessGranted) renderGate();
-      } else {
-        // Signed in with Google for the first time — show the quick
-        // "tell us about your ideas" step before submitting their request.
-        state.myGoogleEmail = email;
-        state.myGoogleName = user.displayName || '';
-        state.gateStage = 'onboarding';
-        if(!state.accessGranted) renderGate();
-      }
-    });
+    onAuthStateChanged(auth, user => { handleAuthUser(user); });
   }
 
   // ---------- DOM refs ----------
@@ -1137,7 +1335,8 @@ const googleProvider = new GoogleAuthProvider();
   })();
 
   function signOut(){
-    flushPendingSaves();
+    flushPendingSaves(true);
+    Object.keys(lastServer).forEach(k => delete lastServer[k]);
     if(typeof unsubscribeHouses === 'function'){ unsubscribeHouses(); unsubscribeHouses = null; }
     state.accessGranted = false;
     state.isAdminVerified = false;
@@ -1466,7 +1665,7 @@ const googleProvider = new GoogleAuthProvider();
 
   // ---------- Undo / redo ----------
   function snapshotRoom(r){
-    return JSON.stringify({cards: r.cards, arrows: r.arrows});
+    return JSON.stringify({cards: r.cards, arrows: r.arrows, drawings: r.drawings || []});
   }
   function pushHistory(){
     const r = currentRoom();
@@ -1481,7 +1680,7 @@ const googleProvider = new GoogleAuthProvider();
     if(!r.history.length) return;
     r.redo.push(snapshotRoom(r));
     const data = JSON.parse(r.history.pop());
-    r.cards = data.cards; r.arrows = data.arrows;
+    r.cards = data.cards; r.arrows = data.arrows; r.drawings = data.drawings || [];
     renderRoom();
     scheduleSaveBoard();
   }
@@ -1490,7 +1689,7 @@ const googleProvider = new GoogleAuthProvider();
     if(!r.redo.length) return;
     r.history.push(snapshotRoom(r));
     const data = JSON.parse(r.redo.pop());
-    r.cards = data.cards; r.arrows = data.arrows;
+    r.cards = data.cards; r.arrows = data.arrows; r.drawings = data.drawings || [];
     renderRoom();
     scheduleSaveBoard();
   }
@@ -1529,10 +1728,8 @@ const googleProvider = new GoogleAuthProvider();
     // normally. This is what lets a collaborator's edits actually arrive
     // instead of being blocked just because you have some unrelated field
     // focused somewhere in the room.
-    const activeCardEl = document.activeElement && document.activeElement.isContentEditable
-      ? document.activeElement.closest('.card')
-      : null;
-    const preservedId = activeCardEl ? activeCardEl.dataset.id : null;
+    const focusedId = getFocusedCardId();
+    const preservedId = focusedId && r.cards.some(c => c.id === focusedId) ? focusedId : null;
 
     [...canvas.querySelectorAll('.card')].forEach(el => {
       if(el.dataset.id !== preservedId) el.remove();
@@ -3059,7 +3256,7 @@ const googleProvider = new GoogleAuthProvider();
       renderHouseInviteChips();
       renderInvitePopoverBody(pop);
       scheduleSaveBoard();
-      sendInviteEmail(email, h.name, `You've been added to "${h.name}" on The Third Place. Sign in with Google using this email to see it.`);
+      sendInviteEmail(email, h.name, `You've been added to "${h.name}" on The Third Place. Open ${location.origin}${location.pathname} and sign in (or create an account) with this email address — ${email} — to see it.`);
     }
     addBtn.addEventListener('click', submitInvite);
     emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') submitInvite(); });
@@ -3129,39 +3326,268 @@ const googleProvider = new GoogleAuthProvider();
     goHome();
   }
 
+  let signupNameHint = '';
+
+  // Runs whenever Firebase reports who is signed in (page load, sign-in, sign-up,
+  // returning from the verification email). Decides which screen — or the app.
+  async function handleAuthUser(user){
+    if(!user){
+      if(!state.accessGranted){
+        if(state.gateStage !== 'signup') state.gateStage = 'signin';
+        renderGate();
+      }
+      return;
+    }
+    // Normalized once, here, at the source — every place that stores or
+    // queries by email downstream uses this same lowercase form.
+    const email = user.email.toLowerCase();
+    state.myGoogleEmail = email;
+    state.myGoogleName = user.displayName || signupNameHint || '';
+
+    // Email/password accounts must prove they own the address before anything
+    // is matched to it — otherwise anyone could sign up as someone else's email
+    // and read the houses shared with them. Google accounts arrive verified.
+    if(!user.emailVerified){
+      state.gateStage = 'verify';
+      if(!state.accessGranted) renderGate();
+      return;
+    }
+    if(email === ADMIN_EMAIL){
+      state.isAdminVerified = true;
+      state.myEmail = email;
+      if(!state.accessGranted) enterApp();
+      return;
+    }
+    const mem = state.members.find(m => m.email.toLowerCase() === email);
+    const pending = state.pendingRequests.find(r => r.email.toLowerCase() === email);
+    if(mem){
+      state.myRequestId = mem.id;
+      state.myEmail = email;
+      if(!state.accessGranted) enterApp();
+    } else if(pending){
+      state.myRequestId = pending.id;
+      state.gateStage = 'pending';
+      if(!state.accessGranted) renderGate();
+    } else if(await isInvitedToAHouse(email)){
+      // Someone already in the community added them to a house — that
+      // invitation is their approval, no waiting on the admin.
+      const rec = {id: genId('mem'), name: state.myGoogleName || email, email};
+      if(!state.members.some(m => m.email.toLowerCase() === email)){
+        state.members.push(rec);
+        scheduleSaveGate();
+      }
+      state.myRequestId = rec.id;
+      state.myEmail = email;
+      if(!state.accessGranted) enterApp();
+    } else {
+      // New here — show the quick "tell us about your ideas" step before
+      // submitting their request.
+      state.gateStage = 'onboarding';
+      if(!state.accessGranted) renderGate();
+    }
+  }
+
+  // True if a house owned by SOMEONE ELSE lists this email as a member.
+  async function isInvitedToAHouse(email){
+    try{
+      const snap = await getDocs(query(HOUSES_COL, where('memberEmails', 'array-contains', email)));
+      return snap.docs.some(d => String(d.data().ownerEmail || '').toLowerCase() !== email);
+    } catch(err){
+      console.error('Invitation check failed', err);
+      return false;
+    }
+  }
+
   function renderGate(){
-    if(state.gateStage === 'onboarding') renderGateOnboarding();
+    if(state.gateStage === 'verify') renderGateVerify();
+    else if(state.gateStage === 'onboarding') renderGateOnboarding();
     else if(state.gateStage === 'pending') renderGatePending();
+    else if(state.gateStage === 'signup') renderGateSignUp();
     else renderGateSignIn();
   }
 
-  function googleSignIn(onError){
+  function authErrorMessage(err){
+    switch(err && err.code){
+      case 'auth/invalid-email': return "That email address doesn't look right.";
+      case 'auth/missing-password': return 'Enter your password.';
+      case 'auth/invalid-credential':
+      case 'auth/wrong-password':
+      case 'auth/user-not-found': return 'Email or password is incorrect.';
+      case 'auth/email-already-in-use': return 'An account with this email already exists — try signing in instead, or continue with Google.';
+      case 'auth/weak-password': return 'Choose a password with at least 6 characters.';
+      case 'auth/too-many-requests': return 'Too many attempts. Wait a minute and try again.';
+      case 'auth/network-request-failed': return 'Network problem — check your connection and try again.';
+      case 'auth/operation-not-allowed': return 'Email sign-in is not switched on yet: in Firebase go to Authentication → Sign-in method and enable Email/Password.';
+      case 'auth/popup-blocked': return 'Your browser blocked the Google window — allow pop-ups for this site and try again.';
+      case 'auth/unauthorized-domain': return "This site's address isn't in Firebase's Authorized domains yet.";
+      default: return 'Something went wrong. Please try again.';
+    }
+  }
+  function showGateError(msg){
+    const el = document.getElementById('gateError');
+    const info = document.getElementById('gateInfo');
+    if(info) info.classList.remove('visible');
+    if(el){ el.textContent = msg; el.classList.add('visible'); }
+  }
+  function showGateInfo(msg){
+    const el = document.getElementById('gateInfo');
+    const err = document.getElementById('gateError');
+    if(err) err.classList.remove('visible');
+    if(el){ el.textContent = msg; el.classList.add('visible'); }
+  }
+  function setGateBusy(btn, busy, idleLabel, busyLabel){
+    if(!btn) return;
+    btn.disabled = busy;
+    btn.textContent = busy ? busyLabel : idleLabel;
+  }
+
+  const GOOGLE_ICON = `<svg viewBox="0 0 48 48" width="18" height="18"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.6 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.5C29.6 36 26.9 37 24 37c-5.2 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 40.6 16.3 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.6 5.5C41.5 36 44 30.5 44 24c0-1.2-.1-2.4-.4-3.5z"/></svg>`;
+
+  function gateInviteBanner(verb){
+    return state.inviteContext
+      ? `<div class="gate-invite-banner">You've been invited to join <strong>${escapeHtml(state.inviteContext.houseName)}</strong> — ${verb} below to get in.</div>`
+      : '';
+  }
+
+  function googleSignIn(){
     signInWithPopup(auth, googleProvider).catch(err => {
+      if(err && (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request')) return;
       console.error('Google sign-in failed', err);
-      if(onError) onError();
+      showGateError(authErrorMessage(err));
     });
+  }
+
+  function switchGateAccount(stage){
+    state.gateStage = stage || 'signin';
+    firebaseSignOut(auth).catch(() => {}).finally(() => { if(!state.accessGranted) renderGate(); });
   }
 
   function renderGateSignIn(){
     gateCard.className = 'gate-card';
-    const inviteBanner = state.inviteContext
-      ? `<div class="gate-invite-banner">You've been invited to join <strong>${escapeHtml(state.inviteContext.houseName)}</strong> — sign in below to get in.</div>`
-      : '';
     gateCard.innerHTML = `
       <div class="gate-product-mark">The Third Place</div>
-      ${inviteBanner}
-      <div class="gate-eyebrow">Invite only</div>
-      <h1>${escapeHtml(state.communityName)}</h1>
-      <p class="sub">This board is exclusive to our community. Sign in with Google to request access, or to get straight in if you're already a member.</p>
-      <div class="gate-error" id="gateSignInError">Something went wrong signing you in. Please try again.</div>
-      <button class="gate-google-btn" id="gateGoogleBtn">
-        <svg viewBox="0 0 48 48" width="18" height="18"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.6 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.5C29.6 36 26.9 37 24 37c-5.2 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 40.6 16.3 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.7l6.6 5.5C41.5 36 44 30.5 44 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
-        Sign in with Google
-      </button>
+      ${gateInviteBanner('sign in')}
+      <div class="gate-eyebrow">Welcome back</div>
+      <h1>Sign in</h1>
+      <p class="sub">${escapeHtml(state.communityName)} is invite-only. Sign in with your email and password, or with Google.</p>
+      <div class="gate-error" id="gateError"></div>
+      <div class="gate-info" id="gateInfo"></div>
+      <div class="gate-field"><label>Email</label><input type="email" id="gateEmail" autocomplete="email" placeholder="you@email.com"></div>
+      <div class="gate-field"><label>Password</label><input type="password" id="gatePassword" autocomplete="current-password" placeholder="Your password"></div>
+      <button class="gate-submit" id="gateSubmit">Sign in</button>
+      <div class="gate-footer-link"><a id="gateForgot">Forgot password?</a></div>
+      <div class="gate-divider"><span>or</span></div>
+      <button class="gate-google-btn" id="gateGoogleBtn">${GOOGLE_ICON} Continue with Google</button>
+      <div class="gate-footer-link">New here? <a id="gateToSignup">Create an account</a></div>
     `;
-    document.getElementById('gateGoogleBtn').addEventListener('click', () => {
-      googleSignIn(() => document.getElementById('gateSignInError').classList.add('visible'));
+    const emailInput = document.getElementById('gateEmail');
+    const passInput = document.getElementById('gatePassword');
+    const submitBtn = document.getElementById('gateSubmit');
+    async function attempt(){
+      const email = emailInput.value.trim();
+      const pass = passInput.value;
+      if(!email || !pass){ showGateError('Enter your email and password.'); return; }
+      setGateBusy(submitBtn, true, 'Sign in', 'Signing in…');
+      try{ await signInWithEmailAndPassword(auth, email, pass); }
+      catch(err){ showGateError(authErrorMessage(err)); setGateBusy(submitBtn, false, 'Sign in', 'Signing in…'); }
+    }
+    submitBtn.addEventListener('click', attempt);
+    emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') passInput.focus(); });
+    passInput.addEventListener('keydown', e => { if(e.key === 'Enter') attempt(); });
+    document.getElementById('gateForgot').addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      if(!email){ showGateError('Type your email above first, then press "Forgot password?".'); emailInput.focus(); return; }
+      try{ await sendPasswordResetEmail(auth, email); } catch(err){ if(err && err.code === 'auth/invalid-email'){ showGateError(authErrorMessage(err)); return; } }
+      // Same message whether or not the address has an account, so it can't be used to probe who's a member.
+      showGateInfo('If that email has an account, a password reset link is on its way.');
     });
+    document.getElementById('gateGoogleBtn').addEventListener('click', googleSignIn);
+    document.getElementById('gateToSignup').addEventListener('click', () => { state.gateStage = 'signup'; renderGate(); });
+  }
+
+  function renderGateSignUp(){
+    gateCard.className = 'gate-card';
+    gateCard.innerHTML = `
+      <div class="gate-product-mark">The Third Place</div>
+      ${gateInviteBanner('create your account')}
+      <div class="gate-eyebrow">Invite only</div>
+      <h1>Create your account</h1>
+      <p class="sub">Join ${escapeHtml(state.communityName)}. Use the email address you were invited with, or continue with Google.</p>
+      <div class="gate-error" id="gateError"></div>
+      <div class="gate-info" id="gateInfo"></div>
+      <div class="gate-field"><label>Name</label><input type="text" id="gateName" autocomplete="name" placeholder="Your name"></div>
+      <div class="gate-field"><label>Email</label><input type="email" id="gateEmail" autocomplete="email" placeholder="you@email.com"></div>
+      <div class="gate-field"><label>Password</label><input type="password" id="gatePassword" autocomplete="new-password" placeholder="At least 6 characters"></div>
+      <button class="gate-submit" id="gateSubmit">Create account</button>
+      <div class="gate-divider"><span>or</span></div>
+      <button class="gate-google-btn" id="gateGoogleBtn">${GOOGLE_ICON} Sign up with Google</button>
+      <div class="gate-footer-link">Already have an account? <a id="gateToSignin">Sign in</a></div>
+    `;
+    const nameInput = document.getElementById('gateName');
+    const emailInput = document.getElementById('gateEmail');
+    const passInput = document.getElementById('gatePassword');
+    const submitBtn = document.getElementById('gateSubmit');
+    async function attempt(){
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+      const pass = passInput.value;
+      if(!name){ showGateError('Tell us your name.'); nameInput.focus(); return; }
+      if(!email){ showGateError('Enter your email address.'); emailInput.focus(); return; }
+      if(pass.length < 6){ showGateError('Choose a password with at least 6 characters.'); passInput.focus(); return; }
+      setGateBusy(submitBtn, true, 'Create account', 'Creating…');
+      signupNameHint = name;   // set first: Firebase reports the new user before the profile update lands
+      try{
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        try{ await updateProfile(cred.user, {displayName: name}); } catch(e){}
+        try{ await sendEmailVerification(cred.user); } catch(e){ console.error('Verification email failed', e); }
+        state.myGoogleName = name;
+        state.gateStage = 'verify';
+        renderGate();
+      } catch(err){
+        showGateError(authErrorMessage(err));
+        setGateBusy(submitBtn, false, 'Create account', 'Creating…');
+      }
+    }
+    submitBtn.addEventListener('click', attempt);
+    nameInput.addEventListener('keydown', e => { if(e.key === 'Enter') emailInput.focus(); });
+    emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') passInput.focus(); });
+    passInput.addEventListener('keydown', e => { if(e.key === 'Enter') attempt(); });
+    document.getElementById('gateGoogleBtn').addEventListener('click', googleSignIn);
+    document.getElementById('gateToSignin').addEventListener('click', () => { state.gateStage = 'signin'; renderGate(); });
+  }
+
+  async function checkVerified(showMessage){
+    const u = auth.currentUser;
+    if(!u) return;
+    try{ await u.reload(); } catch(err){ /* offline — try again later */ }
+    if(auth.currentUser && auth.currentUser.emailVerified) handleAuthUser(auth.currentUser);
+    else if(showMessage) showGateError('Not verified yet — open the link in the email first, then press this again.');
+  }
+  // Coming back from the verification email should just work.
+  window.addEventListener('focus', () => {
+    if(state.gateStage === 'verify' && !state.accessGranted) checkVerified(false);
+  });
+
+  function renderGateVerify(){
+    gateCard.className = 'gate-card';
+    gateCard.innerHTML = `
+      <div class="gate-product-mark">The Third Place</div>
+      <div class="gate-eyebrow">One quick step</div>
+      <h1>Verify your email</h1>
+      <p class="sub">We sent a link to <strong>${escapeHtml(state.myGoogleEmail || '')}</strong>. Open it, then come back here. It confirms the address is really yours — invitations are matched by email.</p>
+      <div class="gate-error" id="gateError"></div>
+      <div class="gate-info" id="gateInfo"></div>
+      <button class="gate-submit" id="gateVerifiedBtn">I've verified — continue</button>
+      <div class="gate-footer-link"><a id="gateResend">Resend email</a> · <a id="gateSwitch">Use a different email</a></div>
+    `;
+    document.getElementById('gateVerifiedBtn').addEventListener('click', () => checkVerified(true));
+    document.getElementById('gateResend').addEventListener('click', async () => {
+      try{
+        await sendEmailVerification(auth.currentUser);
+        showGateInfo('Sent again — check your inbox, and your spam folder.');
+      } catch(err){ showGateError(authErrorMessage(err)); }
+    });
+    document.getElementById('gateSwitch').addEventListener('click', () => switchGateAccount('signin'));
   }
 
   function renderGateOnboarding(){
@@ -3185,7 +3611,9 @@ const googleProvider = new GoogleAuthProvider();
         <div class="gate-mcq-options" id="mcqWeird2Opts"></div>
       </div>
       <button class="gate-submit" id="gateSubmitBtn" style="max-width:220px;">Request access</button>
+      <div class="gate-footer-link">Not you? <a id="gateSwitch">Use a different account</a></div>
     `;
+    document.getElementById('gateSwitch').addEventListener('click', () => switchGateAccount('signin'));
 
     const answers = {ideaType: null, weird1: null, weird2: null};
     function buildChips(containerId, options, key){
@@ -3231,7 +3659,9 @@ const googleProvider = new GoogleAuthProvider();
       <div class="gate-pending-icon"><svg viewBox="0 0 24 24"><path d="M12 2 2 12h3v9h6v-6h2v6h6v-9h3z"/></svg></div>
       <h1>Thanks, ${escapeHtml(name.split(' ')[0])}</h1>
       <p class="sub">Your request to join ${escapeHtml(state.communityName)} is with the admin now. Sit tight — you'll get in automatically the moment it's approved, no need to refresh.</p>
+      <div class="gate-footer-link"><a id="gateSwitch">Use a different account</a></div>
     `;
+    document.getElementById('gateSwitch').addEventListener('click', () => switchGateAccount('signin'));
   }
 
   function renderInsideRooms(){
