@@ -373,6 +373,7 @@
   .invite-member button{border:none;background:none;color:#b3ac99;cursor:pointer;font-size:13px;}
   .invite-member button:hover{color:var(--danger);}
   .invite-link-box{margin-top:10px;padding-top:10px;border-top:1px solid var(--canvas);}
+  .invite-link-note{font-size:11px;color:var(--ink-soft);margin:2px 0 8px;line-height:1.4;}
   .invite-link-box label{font-size:11px;color:var(--ink-soft);display:block;margin-bottom:4px;}
   .invite-link-box input{font-size:11.5px;padding:6px 8px;border-radius:6px;border:1px solid #ddc9e0;background:#fff8f5;color:var(--ink-soft);font-family:inherit;}
 
@@ -1144,15 +1145,20 @@ const googleProvider = new GoogleAuthProvider();
     if(document.visibilityState === 'hidden') flushPendingSaves(false);
   });
 
+  let pendingGateSave = null; // the exact payload sent (or about to be sent) but not yet confirmed
   function scheduleSaveGate(){
     if(applyingRemoteGate) return;
+    const payload = {
+      communityName: state.communityName,
+      pendingRequests: state.pendingRequests,
+      members: state.members
+    };
+    pendingGateSave = payload;
     clearTimeout(scheduleSaveGate._t);
     scheduleSaveGate._t = setTimeout(() => {
-      setDoc(GATE_DOC, {
-        communityName: state.communityName,
-        pendingRequests: state.pendingRequests,
-        members: state.members
-      }).catch(err => console.error('Save failed', err));
+      setDoc(GATE_DOC, payload)
+        .then(() => { if(pendingGateSave === payload) pendingGateSave = null; })
+        .catch(err => console.error('Save failed', err));
     }, 600);
   }
 
@@ -1266,6 +1272,7 @@ const googleProvider = new GoogleAuthProvider();
 
     onSnapshot(GATE_DOC, snap => {
       if(!snap.exists()) return;
+      if(pendingGateSave || (snap.metadata && snap.metadata.hasPendingWrites)) return;
       applyingRemoteGate = true;
       const d = snap.data();
       state.communityName = d.communityName || state.communityName;
@@ -3197,7 +3204,7 @@ const googleProvider = new GoogleAuthProvider();
     const h4 = document.createElement('h4');
     h4.textContent = `Invite to "${h.name}"`;
     const p = document.createElement('p');
-    p.textContent = 'Invited people see every room in this house once they sign up and are approved for ' + state.communityName + '.';
+    p.textContent = 'Invited people get access to every room in this house automatically as soon as they sign up (or sign in) with that email — no approval needed.';
     pop.appendChild(h4); pop.appendChild(p);
 
     if(h.invitedMembers.length){
@@ -3265,7 +3272,7 @@ const googleProvider = new GoogleAuthProvider();
 
     const linkBox = document.createElement('div');
     linkBox.className = 'invite-link-box';
-    linkBox.innerHTML = `<label>Or copy this link and send it yourself</label>`;
+    linkBox.innerHTML = `<label>Or copy this link and send it yourself</label><p class="invite-link-note">Whoever opens it gets into this house automatically once they sign up or sign in — no need to also type their email above.</p>`;
     const linkRow = document.createElement('div');
     linkRow.className = 'invite-row';
     const linkInput = document.createElement('input');
@@ -3358,6 +3365,14 @@ const googleProvider = new GoogleAuthProvider();
       if(!state.accessGranted) enterApp();
       return;
     }
+    // If they arrived via a shared "copy this link" invite, join that house
+    // now — regardless of whether they're already an approved member
+    // elsewhere. Joining one specific house is independent of overall
+    // community access, so this has to happen before the branches below,
+    // not only when none of them already match.
+    if(state.inviteContext){
+      await joinHouseViaInviteLink(email, state.myGoogleName);
+    }
     const mem = state.members.find(m => m.email.toLowerCase() === email);
     const pending = state.pendingRequests.find(r => r.email.toLowerCase() === email);
     if(mem){
@@ -3369,8 +3384,9 @@ const googleProvider = new GoogleAuthProvider();
       state.gateStage = 'pending';
       if(!state.accessGranted) renderGate();
     } else if(await isInvitedToAHouse(email)){
-      // Someone already in the community added them to a house — that
-      // invitation is their approval, no waiting on the admin.
+      // Being a member of any house someone else owns — whether added by
+      // typing their email or via a shared link just above — is their
+      // approval, no waiting on the admin.
       const rec = {id: genId('mem'), name: state.myGoogleName || email, email};
       if(!state.members.some(m => m.email.toLowerCase() === email)){
         state.members.push(rec);
@@ -3394,6 +3410,35 @@ const googleProvider = new GoogleAuthProvider();
       return snap.docs.some(d => String(d.data().ownerEmail || '').toLowerCase() !== email);
     } catch(err){
       console.error('Invitation check failed', err);
+      return false;
+    }
+  }
+
+  // Makes the "copy this link" share option actually grant access, instead
+  // of only showing a banner. Possessing the link is treated the same way
+  // typing someone's email into the Invite field already is — as proof
+  // they were invited — since that's the whole point of a share link.
+  async function joinHouseViaInviteLink(email, name){
+    if(!state.inviteContext) return false;
+    const ref = doc(db, 'houses', state.inviteContext.houseId);
+    try{
+      const joined = await runTransaction(db, async tx => {
+        const snap = await tx.get(ref);
+        if(!snap.exists()) return false;
+        const data = snap.data();
+        if(!Array.isArray(data.memberEmails)) data.memberEmails = [];
+        if(!Array.isArray(data.invitedMembers)) data.invitedMembers = [];
+        if(!data.memberEmails.some(e => e.toLowerCase() === email)){
+          data.memberEmails.push(email);
+          data.invitedMembers.push({id: genId('mem'), name: name || email, email});
+          tx.set(ref, data);
+        }
+        return true;
+      });
+      if(joined) state.inviteContext = null; // consumed — no need to re-run this on next load
+      return joined;
+    } catch(err){
+      console.error('Joining via invite link failed', err);
       return false;
     }
   }
