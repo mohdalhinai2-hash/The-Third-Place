@@ -393,12 +393,17 @@
   .draw-temp{pointer-events:none;opacity:.8;}
   .bend-handle{fill:#fff;stroke:var(--accent);stroke-width:2px;opacity:0;pointer-events:none;cursor:default;transition:opacity .12s ease;}
   .line-group:hover .bend-handle{opacity:1;pointer-events:all;}
+  .thread-delete-btn{cursor:pointer;}
+  .thread-delete-btn circle{fill:var(--danger);stroke:#fff;stroke-width:1.5;}
+  .thread-delete-btn path{stroke:#fff;stroke-width:1.8;stroke-linecap:round;}
+  .thread-delete-btn:hover circle{fill:#b3202f;}
   .bend-handle:active{cursor:default;}
 
   .empty-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#a39c86;pointer-events:none;font-family:'Young Serif',serif;font-size:19px;}
 
   /* ---------- Cards ---------- */
   .card{position:absolute;border-radius:var(--radius);box-shadow:var(--shadow);padding:0;user-select:none;background:var(--card-cream);cursor:default;display:flex;flex-direction:column;}
+  .card.type-note{border:2px solid var(--card-ink);box-shadow:none;border-radius:6px;}
   .card.dragging{cursor:default;box-shadow:0 16px 30px -8px rgba(0,0,0,.35);z-index:50;transition:none;}
   .card::before{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #fff, var(--accent) 60%, #33339a 100%);box-shadow:0 2px 3px rgba(0,0,0,.35);}
   .card-head{height:20px;flex-shrink:0;cursor:default;position:relative;display:flex;align-items:center;justify-content:flex-end;padding:4px 6px 0 6px;gap:4px;opacity:0;transition:opacity .12s ease;}
@@ -2024,16 +2029,11 @@ const googleProvider = new GoogleAuthProvider();
     const frag = document.createDocumentFragment();
 
     if(card.type === 'note'){
-      const tag = document.createElement('div');
-      tag.className = 'card-tag';
-      tag.textContent = 'idea';
-      frag.appendChild(tag);
-
       const div = document.createElement('div');
       div.className = 'note-text';
       div.contentEditable = 'true';
       div.dir = 'auto';
-      div.dataset.ph = 'Type an idea…';
+      div.dataset.ph = 'Go crazy';
       div.innerHTML = sanitizeCardHtml(card.content || '');
       div.addEventListener('mousedown', guardEditableDrag(div));
       div.addEventListener('input', () => { card.content = sanitizeCardHtml(div.innerHTML); scheduleSaveBoard(); });
@@ -2882,12 +2882,23 @@ const googleProvider = new GoogleAuthProvider();
   }
   function finishFreehandDraw(){
     if(drawTempPath){ drawTempPath.remove(); drawTempPath = null; }
-    if(drawingStroke && drawingStroke.points.length > 1){
-      pushHistory();
-      const r = currentRoom();
-      if(!Array.isArray(r.drawings)) r.drawings = [];
-      r.drawings.push({id: nextId(), points: drawingStroke.points, color: drawingStroke.color, thickness: drawingStroke.thickness});
-      scheduleSaveBoard();
+    if(drawingStroke){
+      let points = drawingStroke.points;
+      if(points.length === 1){
+        // A plain tap with no drag — place a single dot, the same way a pen
+        // tip touching paper without moving would. Duplicating the point
+        // makes a zero-length segment, which the round line-cap already
+        // used for strokes renders as a filled circle, no special case
+        // needed in the renderer below.
+        points = [points[0], points[0]];
+      }
+      if(points.length > 1){
+        pushHistory();
+        const r = currentRoom();
+        if(!Array.isArray(r.drawings)) r.drawings = [];
+        r.drawings.push({id: nextId(), points, color: drawingStroke.color, thickness: drawingStroke.thickness});
+        scheduleSaveBoard();
+      }
     }
     drawingStroke = null;
     drawOverlay();
@@ -3031,15 +3042,18 @@ const googleProvider = new GoogleAuthProvider();
     if(defs) return;
     defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
     defs.innerHTML = `
-      <marker id="arrowhead" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
-        <path d="M1.5,1.5 L10,6 L1.5,10.5" fill="none" stroke="#4b1e9e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <marker id="arrowhead" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0.5,0.8 L11,6 L0.5,11.2 Z" fill="var(--accent)"/>
+      </marker>
+      <marker id="arrowhead-selected" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0.5,0.8 L11,6 L0.5,11.2 Z" fill="var(--danger)"/>
       </marker>`;
     connLayer.appendChild(defs);
   }
 
   function makeHandle(onGrab){
     const handle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    handle.setAttribute('r', 5);
+    handle.setAttribute('r', 3.5);
     handle.setAttribute('class', 'bend-handle');
     handle.addEventListener('mousedown', e => {
       e.stopPropagation();
@@ -3091,7 +3105,7 @@ const googleProvider = new GoogleAuthProvider();
       const path = document.createElementNS('http://www.w3.org/2000/svg','path');
       path.setAttribute('d', d);
       path.setAttribute('class', 'thread' + (isSelected ? ' selected' : ''));
-      path.setAttribute('marker-end','url(#arrowhead)');
+      path.setAttribute('marker-end', isSelected ? 'url(#arrowhead-selected)' : 'url(#arrowhead)');
 
       const dot1 = document.createElementNS('http://www.w3.org/2000/svg','circle');
       dot1.setAttribute('class','thread-endpoint');
@@ -3110,6 +3124,30 @@ const googleProvider = new GoogleAuthProvider();
       handle.setAttribute('cy', cy);
 
       g.appendChild(hit); g.appendChild(path); g.appendChild(dot1); g.appendChild(dot2); g.appendChild(handle);
+
+      if(isSelected){
+        // A visible delete button, not just a keyboard shortcut — sits just
+        // off the line so it doesn't cover the bend handle at the same spot.
+        const delGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+        delGroup.setAttribute('class', 'thread-delete-btn');
+        delGroup.setAttribute('transform', `translate(${cx + 16}, ${cy - 16})`);
+        const delCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        delCircle.setAttribute('r', 9);
+        const delX = document.createElementNS('http://www.w3.org/2000/svg','path');
+        delX.setAttribute('d', 'M-3.2,-3.2 L3.2,3.2 M3.2,-3.2 L-3.2,3.2');
+        delGroup.appendChild(delCircle);
+        delGroup.appendChild(delX);
+        delGroup.addEventListener('mousedown', e => e.stopPropagation());
+        delGroup.addEventListener('click', e => {
+          e.stopPropagation();
+          pushHistory();
+          r.arrows = r.arrows.filter(a => a.id !== arrow.id);
+          state.selectedArrowId = null;
+          drawOverlay();
+        });
+        g.appendChild(delGroup);
+      }
+
       connLayer.appendChild(g);
     });
 
