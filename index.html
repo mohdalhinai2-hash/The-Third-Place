@@ -745,7 +745,7 @@ const googleProvider = new GoogleAuthProvider();
   if(typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY'){
     emailjs.init(EMAILJS_PUBLIC_KEY);
   }
-  function sendInviteEmail(toEmail, houseOrCommunityName, message){
+  function sendInviteEmail(toEmail, houseOrCommunityName, message, link){
     if(typeof emailjs === 'undefined' || EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY'){
       console.log('[EmailJS not configured yet] Would have emailed', toEmail, '—', message);
       return;
@@ -753,7 +753,8 @@ const googleProvider = new GoogleAuthProvider();
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email: toEmail,
       house_name: houseOrCommunityName,
-      message
+      message,
+      link: link || `${location.origin}${location.pathname}`
     }).catch(err => console.error('Email send failed', err));
   }
 
@@ -3265,7 +3266,15 @@ const googleProvider = new GoogleAuthProvider();
       renderHouseInviteChips();
       renderInvitePopoverBody(pop);
       scheduleSaveBoard();
-      sendInviteEmail(email, h.name, `You've been added to "${h.name}" on The Third Place. Open ${location.origin}${location.pathname} and sign in (or create an account) with this email address — ${email} — to see it.`);
+      const inviteUrl = new URL(location.href);
+      inviteUrl.search = '';
+      inviteUrl.searchParams.set('invite', h.id);
+      inviteUrl.searchParams.set('house', h.name);
+      sendInviteEmail(
+        email, h.name,
+        `You've been added to "${h.name}" on The Third Place. Open the link below and sign in (or create an account) with this email address — ${email} — to see it.`,
+        inviteUrl.toString()
+      );
     }
     addBtn.addEventListener('click', submitInvite);
     emailInput.addEventListener('keydown', e => { if(e.key === 'Enter') submitInvite(); });
