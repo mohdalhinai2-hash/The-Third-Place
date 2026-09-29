@@ -210,6 +210,9 @@
   .format-rail{display:none;gap:8px;padding-top:16px;}
   .format-rail.visible{display:flex;}
   .format-rail-label{font-size:10px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+  .format-rail-swatches{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;width:46px;margin-bottom:4px;}
+  .format-rail-swatch{width:16px;height:16px;border-radius:50%;cursor:pointer;border:2px solid transparent;padding:0;}
+  .format-rail-swatch.active{border-color:var(--ink);}
   .format-rail-btn{
     width:38px;height:38px;border-radius:10px;border:1px solid var(--surface-border,#e2dac6);background:#fff;
     cursor:pointer;font-size:14px;color:var(--ink);display:flex;align-items:center;justify-content:center;
@@ -393,15 +396,15 @@
   .canvas-wrap.arrow-mode{cursor:crosshair;}
   .canvas{position:absolute;top:0;left:0;width:9000px;height:6000px;transform-origin:0 0;}
   .conn-layer{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
-  .thread{fill:none;stroke:var(--accent);stroke-width:3;pointer-events:stroke;cursor:pointer;}
+  .thread{fill:none;stroke:var(--card-ink);stroke-width:1.8;pointer-events:stroke;cursor:pointer;}
   .thread:hover{stroke:var(--danger);}
   .thread.selected{stroke:var(--danger);}
-  .thread-hit{fill:none;stroke:transparent;stroke-width:18px;pointer-events:stroke;cursor:pointer;}
-  .thread-endpoint{fill:#fff;stroke:var(--accent);stroke-width:2px;opacity:0;pointer-events:none;cursor:grab;transition:opacity .1s ease;}
+  .thread-hit{fill:none;stroke:transparent;stroke-width:18px;pointer-events:stroke;cursor:grab;}
+  .thread-endpoint{fill:#fff;stroke:var(--card-ink);stroke-width:1.4px;opacity:0;pointer-events:none;cursor:grab;transition:opacity .1s ease;}
   .line-group:hover .thread-endpoint{opacity:1;pointer-events:all;}
   .line-group.selected .thread-endpoint{opacity:1;pointer-events:all;}
   .draw-temp{pointer-events:none;opacity:.8;}
-  .bend-handle{fill:#fff;stroke:var(--accent);stroke-width:2px;opacity:0;pointer-events:none;cursor:default;transition:opacity .12s ease;}
+  .bend-handle{fill:#fff;stroke:var(--card-ink);stroke-width:1.4px;opacity:0;pointer-events:none;cursor:default;transition:opacity .12s ease;}
   .line-group:hover .bend-handle{opacity:1;pointer-events:all;}
   .thread-delete-btn{cursor:pointer;}
   .thread-delete-btn circle{fill:var(--danger);stroke:#fff;stroke-width:1.5;}
@@ -697,6 +700,7 @@
 
         <div class="tool-rail format-rail" id="formatRail">
           <div class="format-rail-label">Text style</div>
+          <div class="format-rail-swatches" id="formatRailSwatches"></div>
           <button class="format-rail-btn" id="fmtBoldBtn" title="Bold"><b>B</b></button>
           <button class="format-rail-btn" id="fmtUnderlineBtn" title="Underline"><u>U</u></button>
           <button class="format-rail-btn" id="fmtHighlightBtn" title="Highlight">H</button>
@@ -1884,23 +1888,25 @@ const googleProvider = new GoogleAuthProvider();
     const head = document.createElement('div');
     head.className = 'card-head';
 
-    const swatches = document.createElement('div');
-    swatches.className = 'swatches';
-    COLORS.forEach(c => {
-      const sw = document.createElement('div');
-      sw.className = 'swatch';
-      sw.style.background = c.hex;
-      sw.title = c.name;
-      sw.addEventListener('mousedown', e => e.stopPropagation());
-      sw.addEventListener('click', e => {
-        e.stopPropagation();
-        pushHistory();
-        card.color = c.name;
-        el.style.background = c.hex;
+    if(card.type !== 'note'){
+      const swatches = document.createElement('div');
+      swatches.className = 'swatches';
+      COLORS.forEach(c => {
+        const sw = document.createElement('div');
+        sw.className = 'swatch';
+        sw.style.background = c.hex;
+        sw.title = c.name;
+        sw.addEventListener('mousedown', e => e.stopPropagation());
+        sw.addEventListener('click', e => {
+          e.stopPropagation();
+          pushHistory();
+          card.color = c.name;
+          el.style.background = c.hex;
+        });
+        swatches.appendChild(sw);
       });
-      swatches.appendChild(sw);
-    });
-    head.appendChild(swatches);
+      head.appendChild(swatches);
+    }
 
     if(card.type === 'note'){
       const expandBtn = document.createElement('button');
@@ -2010,28 +2016,51 @@ const googleProvider = new GoogleAuthProvider();
   // text field is focused. Uses execCommand — deprecated but still the
   // simplest reliable way to apply inline formatting inside a plain
   // contenteditable without pulling in a rich-text editor library.
-  let activeFormatTarget = null;
+  let activeFormatTarget = null; // {textEl, card, el}
   const toolRailEl = document.getElementById('toolRail');
   const formatRailEl = document.getElementById('formatRail');
+  const formatRailSwatches = document.getElementById('formatRailSwatches');
 
   // Instead of a small toolbar floating above each note, formatting controls
   // live in a dedicated panel on the left that swaps in for the normal
   // tool rail while a note is focused — one consistent place for it,
   // rather than a popup tied to whichever card you happen to be in.
-  function attachNoteFormatting(textEl){
+  function attachNoteFormatting(textEl, card, el){
     textEl.addEventListener('focus', () => {
-      activeFormatTarget = textEl;
+      activeFormatTarget = {textEl, card, el};
       toolRailEl.style.display = 'none';
       formatRailEl.classList.add('visible');
+      renderFormatRailSwatches();
     });
     textEl.addEventListener('blur', () => {
       setTimeout(() => {
         if(document.activeElement !== textEl){
-          if(activeFormatTarget === textEl) activeFormatTarget = null;
+          if(activeFormatTarget && activeFormatTarget.textEl === textEl) activeFormatTarget = null;
           toolRailEl.style.display = '';
           formatRailEl.classList.remove('visible');
         }
       }, 120);
+    });
+  }
+  function renderFormatRailSwatches(){
+    formatRailSwatches.innerHTML = '';
+    if(!activeFormatTarget) return;
+    const {card, el} = activeFormatTarget;
+    COLORS.forEach(c => {
+      const sw = document.createElement('button');
+      sw.type = 'button';
+      sw.className = 'format-rail-swatch' + (card.color === c.name ? ' active' : '');
+      sw.style.background = c.hex;
+      sw.title = c.name;
+      sw.addEventListener('mousedown', e => e.preventDefault());
+      sw.addEventListener('click', () => {
+        pushHistory();
+        card.color = c.name;
+        el.style.background = c.hex;
+        scheduleSaveBoard();
+        renderFormatRailSwatches();
+      });
+      formatRailSwatches.appendChild(sw);
     });
   }
   function wireFormatRailButton(id, run){
@@ -2039,7 +2068,7 @@ const googleProvider = new GoogleAuthProvider();
     btn.addEventListener('mousedown', e => e.preventDefault()); // keep focus in the note while clicking
     btn.addEventListener('click', () => {
       if(!activeFormatTarget) return;
-      activeFormatTarget.focus();
+      activeFormatTarget.textEl.focus();
       run();
       scheduleSaveBoard();
     });
@@ -2064,7 +2093,7 @@ const googleProvider = new GoogleAuthProvider();
       div.innerHTML = sanitizeCardHtml(card.content || '');
       div.addEventListener('mousedown', guardEditableDrag(div));
       div.addEventListener('input', () => { card.content = sanitizeCardHtml(div.innerHTML); scheduleSaveBoard(); });
-      attachNoteFormatting(div);
+      attachNoteFormatting(div, card, cardEl);
       frag.appendChild(div);
     }
 
@@ -2831,23 +2860,45 @@ const googleProvider = new GoogleAuthProvider();
     drawOverlay();
     scheduleSaveBoard();
   });
-  window.addEventListener('mouseup', e => {
-    if(!draggingEndpoint) return;
-    // Dropped on a card? Snap to it, same as when the arrow was first drawn.
-    // Otherwise it stays a free point wherever it was released.
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const cardEl = el && el.closest && el.closest('.card');
-    if(cardEl){
-      draggingEndpoint.arrow[draggingEndpoint.end] = {cardId: cardEl.dataset.id};
-      scheduleSaveBoard();
-      drawOverlay();
-    }
-    draggingEndpoint = null;
-  });
+  window.addEventListener('mouseup', () => { draggingEndpoint = null; });
   function startEndpointDrag(arrow, end){
     pushHistory();
     draggingEndpoint = {arrow, end};
   }
+
+  // ---------- Moving the whole arrow by its body ----------
+  let wholeArrowCandidate = null; // {arrow, startX, startY}
+  let draggingWholeArrow = null; // {arrow}
+  window.addEventListener('mousemove', e => {
+    if(wholeArrowCandidate && !draggingWholeArrow){
+      const dx0 = e.clientX - wholeArrowCandidate.startX, dy0 = e.clientY - wholeArrowCandidate.startY;
+      if(Math.hypot(dx0, dy0) > DRAG_THRESHOLD){
+        const arrow = wholeArrowCandidate.arrow;
+        pushHistory();
+        // Detach from any cards first, so the whole arrow can move freely as
+        // one unit instead of one end staying pinned to a card.
+        const pts = resolveArrowPoints(arrow);
+        if(pts){
+          arrow.from = {x: pts.p1.x, y: pts.p1.y};
+          arrow.to = {x: pts.p2.x, y: pts.p2.y};
+        }
+        draggingWholeArrow = {arrow};
+      }
+    }
+    if(!draggingWholeArrow) return;
+    const zoom = currentRoom().zoom;
+    const dx = e.movementX / zoom, dy = e.movementY / zoom;
+    const arrow = draggingWholeArrow.arrow;
+    arrow.from.x += dx; arrow.from.y += dy;
+    arrow.to.x += dx; arrow.to.y += dy;
+    if(arrow.cx !== undefined){ arrow.cx += dx; arrow.cy += dy; }
+    drawOverlay();
+    scheduleSaveBoard();
+  });
+  window.addEventListener('mouseup', () => {
+    wholeArrowCandidate = null;
+    draggingWholeArrow = null;
+  });
 
   // ---------- Panning the canvas ----------
   let panning = null;
@@ -3096,18 +3147,18 @@ const googleProvider = new GoogleAuthProvider();
     if(defs) return;
     defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
     defs.innerHTML = `
-      <marker id="arrowhead" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-        <path d="M0.5,0.8 L11,6 L0.5,11.2 Z" fill="var(--accent)"/>
+      <marker id="arrowhead" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+        <path d="M0.6,1 L11,6 L0.6,11 Z" fill="var(--card-ink)"/>
       </marker>
-      <marker id="arrowhead-selected" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-        <path d="M0.5,0.8 L11,6 L0.5,11.2 Z" fill="var(--danger)"/>
+      <marker id="arrowhead-selected" viewBox="0 0 12 12" refX="9.5" refY="6" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+        <path d="M0.6,1 L11,6 L0.6,11 Z" fill="var(--danger)"/>
       </marker>`;
     connLayer.appendChild(defs);
   }
 
   function makeHandle(onGrab){
     const handle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    handle.setAttribute('r', 3.5);
+    handle.setAttribute('r', 2.5);
     handle.setAttribute('class', 'bend-handle');
     handle.addEventListener('mousedown', e => {
       e.stopPropagation();
@@ -3149,6 +3200,11 @@ const googleProvider = new GoogleAuthProvider();
       const hit = document.createElementNS('http://www.w3.org/2000/svg','path');
       hit.setAttribute('d', d);
       hit.setAttribute('class', 'thread-hit');
+      hit.addEventListener('mousedown', e => {
+        if(state.arrowMode) return;
+        e.stopPropagation();
+        wholeArrowCandidate = {arrow, startX: e.clientX, startY: e.clientY};
+      });
       hit.addEventListener('click', e => {
         if(state.arrowMode) return;
         e.stopPropagation();
@@ -3163,12 +3219,12 @@ const googleProvider = new GoogleAuthProvider();
 
       const dot1 = document.createElementNS('http://www.w3.org/2000/svg','circle');
       dot1.setAttribute('class','thread-endpoint');
-      dot1.setAttribute('r', 3.5);
+      dot1.setAttribute('r', 2.5);
       dot1.setAttribute('cx', p1.x); dot1.setAttribute('cy', p1.y);
       dot1.addEventListener('mousedown', e => { e.stopPropagation(); startEndpointDrag(arrow, 'from'); });
       const dot2 = document.createElementNS('http://www.w3.org/2000/svg','circle');
       dot2.setAttribute('class','thread-endpoint');
-      dot2.setAttribute('r', 3.5);
+      dot2.setAttribute('r', 2.5);
       dot2.setAttribute('cx', p2.x); dot2.setAttribute('cy', p2.y);
       dot2.addEventListener('mousedown', e => { e.stopPropagation(); startEndpointDrag(arrow, 'to'); });
 
