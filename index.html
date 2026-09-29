@@ -207,6 +207,15 @@
     flex-shrink:0;width:66px;background:var(--surface, #faf8f3);border-right:1px solid var(--surface-border, #e6e1d5);
     padding:14px 6px;display:flex;flex-direction:column;align-items:center;gap:12px;overflow-y:auto;
   }
+  .format-rail{display:none;gap:8px;padding-top:16px;}
+  .format-rail.visible{display:flex;}
+  .format-rail-label{font-size:10px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+  .format-rail-btn{
+    width:38px;height:38px;border-radius:10px;border:1px solid var(--surface-border,#e2dac6);background:#fff;
+    cursor:pointer;font-size:14px;color:var(--ink);display:flex;align-items:center;justify-content:center;
+  }
+  .format-rail-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .format-rail-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
   .rail-btn{
     display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;
     cursor:pointer;font-family:inherit;padding:2px;width:100%;
@@ -388,8 +397,9 @@
   .thread:hover{stroke:var(--danger);}
   .thread.selected{stroke:var(--danger);}
   .thread-hit{fill:none;stroke:transparent;stroke-width:18px;pointer-events:stroke;cursor:pointer;}
-  .thread-endpoint{fill:var(--accent);opacity:0;pointer-events:none;transition:opacity .1s ease;}
-  .thread.selected ~ .thread-endpoint, .line-group.selected .thread-endpoint{opacity:1;}
+  .thread-endpoint{fill:#fff;stroke:var(--accent);stroke-width:2px;opacity:0;pointer-events:none;cursor:grab;transition:opacity .1s ease;}
+  .line-group:hover .thread-endpoint{opacity:1;pointer-events:all;}
+  .line-group.selected .thread-endpoint{opacity:1;pointer-events:all;}
   .draw-temp{pointer-events:none;opacity:.8;}
   .bend-handle{fill:#fff;stroke:var(--accent);stroke-width:2px;opacity:0;pointer-events:none;cursor:default;transition:opacity .12s ease;}
   .line-group:hover .bend-handle{opacity:1;pointer-events:all;}
@@ -655,7 +665,7 @@
       </div>
 
       <div class="board-body">
-        <div class="tool-rail">
+        <div class="tool-rail" id="toolRail">
           <button class="rail-btn rail-note" id="addNote" title="Add a note">
             <span class="rail-icon">✎</span><span class="rail-label">Note</span>
           </button>
@@ -683,6 +693,13 @@
           <button class="rail-btn rail-draw" id="drawBtn" title="Draw a freehand line">
             <span class="rail-icon">✏️</span><span class="rail-label">Draw</span>
           </button>
+        </div>
+
+        <div class="tool-rail format-rail" id="formatRail">
+          <div class="format-rail-label">Text style</div>
+          <button class="format-rail-btn" id="fmtBoldBtn" title="Bold"><b>B</b></button>
+          <button class="format-rail-btn" id="fmtUnderlineBtn" title="Underline"><u>U</u></button>
+          <button class="format-rail-btn" id="fmtHighlightBtn" title="Highlight">H</button>
         </div>
 
         <div class="canvas-wrap" id="canvasWrap">
@@ -1993,37 +2010,47 @@ const googleProvider = new GoogleAuthProvider();
   // text field is focused. Uses execCommand — deprecated but still the
   // simplest reliable way to apply inline formatting inside a plain
   // contenteditable without pulling in a rich-text editor library.
-  function makeFormatToolbar(textEl){
-    const bar = document.createElement('div');
-    bar.className = 'format-toolbar';
-    function cmdBtn(html, title, run){
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'format-btn';
-      b.innerHTML = html;
-      b.title = title;
-      b.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
-      b.addEventListener('click', e => {
-        e.stopPropagation();
-        textEl.focus();
-        run();
-        scheduleSaveBoard();
-      });
-      return b;
-    }
-    bar.appendChild(cmdBtn('<b>B</b>', 'Bold', () => document.execCommand('bold')));
-    bar.appendChild(cmdBtn('<u>U</u>', 'Underline', () => document.execCommand('underline')));
-    bar.appendChild(cmdBtn('H', 'Highlight', () => {
-      if(!document.execCommand('hiliteColor', false, '#ffd23f')){
-        document.execCommand('backColor', false, '#ffd23f');
-      }
-    }));
-    textEl.addEventListener('focus', () => { bar.classList.add('visible'); });
-    textEl.addEventListener('blur', () => {
-      setTimeout(() => { if(document.activeElement !== textEl) bar.classList.remove('visible'); }, 120);
+  let activeFormatTarget = null;
+  const toolRailEl = document.getElementById('toolRail');
+  const formatRailEl = document.getElementById('formatRail');
+
+  // Instead of a small toolbar floating above each note, formatting controls
+  // live in a dedicated panel on the left that swaps in for the normal
+  // tool rail while a note is focused — one consistent place for it,
+  // rather than a popup tied to whichever card you happen to be in.
+  function attachNoteFormatting(textEl){
+    textEl.addEventListener('focus', () => {
+      activeFormatTarget = textEl;
+      toolRailEl.style.display = 'none';
+      formatRailEl.classList.add('visible');
     });
-    return bar;
+    textEl.addEventListener('blur', () => {
+      setTimeout(() => {
+        if(document.activeElement !== textEl){
+          if(activeFormatTarget === textEl) activeFormatTarget = null;
+          toolRailEl.style.display = '';
+          formatRailEl.classList.remove('visible');
+        }
+      }, 120);
+    });
   }
+  function wireFormatRailButton(id, run){
+    const btn = document.getElementById(id);
+    btn.addEventListener('mousedown', e => e.preventDefault()); // keep focus in the note while clicking
+    btn.addEventListener('click', () => {
+      if(!activeFormatTarget) return;
+      activeFormatTarget.focus();
+      run();
+      scheduleSaveBoard();
+    });
+  }
+  wireFormatRailButton('fmtBoldBtn', () => document.execCommand('bold'));
+  wireFormatRailButton('fmtUnderlineBtn', () => document.execCommand('underline'));
+  wireFormatRailButton('fmtHighlightBtn', () => {
+    if(!document.execCommand('hiliteColor', false, '#ffd23f')){
+      document.execCommand('backColor', false, '#ffd23f');
+    }
+  });
 
   function buildBody(card, cardEl){
     const frag = document.createDocumentFragment();
@@ -2037,7 +2064,7 @@ const googleProvider = new GoogleAuthProvider();
       div.innerHTML = sanitizeCardHtml(card.content || '');
       div.addEventListener('mousedown', guardEditableDrag(div));
       div.addEventListener('input', () => { card.content = sanitizeCardHtml(div.innerHTML); scheduleSaveBoard(); });
-      frag.appendChild(makeFormatToolbar(div));
+      attachNoteFormatting(div);
       frag.appendChild(div);
     }
 
@@ -2795,6 +2822,33 @@ const googleProvider = new GoogleAuthProvider();
   });
   window.addEventListener('mouseup', () => { draggingHandle = null; });
 
+  // ---------- Moving an arrow's endpoint anywhere on the canvas ----------
+  let draggingEndpoint = null; // {arrow, end: 'from' | 'to'}
+  window.addEventListener('mousemove', e => {
+    if(!draggingEndpoint) return;
+    const p = screenToCanvas(e);
+    draggingEndpoint.arrow[draggingEndpoint.end] = {x: p.x, y: p.y};
+    drawOverlay();
+    scheduleSaveBoard();
+  });
+  window.addEventListener('mouseup', e => {
+    if(!draggingEndpoint) return;
+    // Dropped on a card? Snap to it, same as when the arrow was first drawn.
+    // Otherwise it stays a free point wherever it was released.
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const cardEl = el && el.closest && el.closest('.card');
+    if(cardEl){
+      draggingEndpoint.arrow[draggingEndpoint.end] = {cardId: cardEl.dataset.id};
+      scheduleSaveBoard();
+      drawOverlay();
+    }
+    draggingEndpoint = null;
+  });
+  function startEndpointDrag(arrow, end){
+    pushHistory();
+    draggingEndpoint = {arrow, end};
+  }
+
   // ---------- Panning the canvas ----------
   let panning = null;
   canvasWrap.addEventListener('mousedown', e => {
@@ -3109,12 +3163,14 @@ const googleProvider = new GoogleAuthProvider();
 
       const dot1 = document.createElementNS('http://www.w3.org/2000/svg','circle');
       dot1.setAttribute('class','thread-endpoint');
-      dot1.setAttribute('r', 4);
+      dot1.setAttribute('r', 3.5);
       dot1.setAttribute('cx', p1.x); dot1.setAttribute('cy', p1.y);
+      dot1.addEventListener('mousedown', e => { e.stopPropagation(); startEndpointDrag(arrow, 'from'); });
       const dot2 = document.createElementNS('http://www.w3.org/2000/svg','circle');
       dot2.setAttribute('class','thread-endpoint');
-      dot2.setAttribute('r', 4);
+      dot2.setAttribute('r', 3.5);
       dot2.setAttribute('cx', p2.x); dot2.setAttribute('cy', p2.y);
+      dot2.addEventListener('mousedown', e => { e.stopPropagation(); startEndpointDrag(arrow, 'to'); });
 
       const handle = makeHandle(() => {
         if(arrow.cx === undefined){ arrow.cx = liveCx; arrow.cy = liveCy; }
