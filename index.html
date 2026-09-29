@@ -697,7 +697,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, collection, query, where, limit,
-  runTransaction, enableIndexedDbPersistence
+  runTransaction, enableMultiTabIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as firebaseSignOut,
@@ -722,10 +722,15 @@ const db = getFirestore(fbApp);
 // this, a beforeunload-triggered save could still be silently cut off by
 // the browser mid-flight, since pages aren't required to wait for pending
 // network requests before tearing down.
-enableIndexedDbPersistence(db).catch(err => {
-  // Fails gracefully if another tab of this site is already open (only one
-  // tab can hold the persistent cache at a time) or the browser doesn't
-  // support it — the app still works, it just loses this extra safety net.
+//
+// Multi-tab (not single-tab) specifically: opening the same site in two
+// windows used to mean only the FIRST one got this protection at all — the
+// second tab silently ran with no durable cache, which is exactly what
+// made refreshing it lose whatever hadn't finished saving yet. Multi-tab
+// mode shares one real cache across every open tab instead.
+enableMultiTabIndexedDbPersistence(db).catch(err => {
+  // Fails gracefully if the browser doesn't support it — the app still
+  // works, it just loses this extra safety net.
   console.warn('Offline persistence unavailable:', err.code);
 });
 const auth = getAuth(fbApp);
