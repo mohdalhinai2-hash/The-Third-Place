@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Third Place — A place to stop an idea</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ff5a36'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ff5a36'/%3E%3Ctext x='16' y='20.5' font-family='Georgia,serif' font-size='11' fill='white' text-anchor='middle'%3E3th%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -243,7 +243,6 @@
   .rail-book .rail-icon{background:#f6e2d8;border-color:#e0a98a;color:#7a3a1a;}
   .rail-bookshelf .rail-icon{background:#e8ddf3;border-color:#c4a8e0;color:#5c2e70;}
   .rail-arrow .rail-icon{background:#e4e4fb;border-color:#b3b3f2;color:#33339a;}
-  .rail-arrow.active .rail-icon{background:var(--accent);border-color:var(--accent);color:#fff;}
   .rail-draw .rail-icon{background:#fde3e0;border-color:#f0a89f;color:#8a2e1e;}
   .rail-draw.active .rail-icon{background:var(--accent);border-color:var(--accent);color:#fff;}
 
@@ -393,7 +392,6 @@
   /* ---------- Canvas ---------- */
   .canvas-wrap{flex:1;position:relative;overflow:hidden;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1.4px, transparent 1.4px);cursor:default;}
   .canvas-wrap.panning{cursor:default;}
-  .canvas-wrap.arrow-mode{cursor:crosshair;}
   .canvas{position:absolute;top:0;left:0;width:9000px;height:6000px;transform-origin:0 0;}
   .conn-layer{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;}
   .thread{fill:none;stroke:var(--card-ink);stroke-width:1.8;pointer-events:stroke;cursor:pointer;}
@@ -690,7 +688,7 @@
           <button class="rail-btn rail-bookshelf" id="addBookshelf" title="Add a bookshelf">
             <span class="rail-icon">📚</span><span class="rail-label">Shelf</span>
           </button>
-          <button class="rail-btn rail-arrow" id="arrowBtn" title="Draw an arrow — drag from a point or a card to another">
+          <button class="rail-btn rail-arrow" id="arrowBtn" title="Add an arrow — drag its ends, body, or bend point to position it">
             <span class="rail-icon">↗</span><span class="rail-label">Arrow</span>
           </button>
           <button class="rail-btn rail-draw" id="drawBtn" title="Draw a freehand line">
@@ -847,7 +845,6 @@ const googleProvider = new GoogleAuthProvider();
     currentHouseId: null,
     currentRoomId: null,
     view: 'home', // 'home' | 'house' | 'room'
-    arrowMode: false,
     communityName: 'The Crazy Ones Community',
     gateStage: 'signin', // 'signin' | 'onboarding' | 'pending'
     pendingRequests: [],
@@ -1096,7 +1093,7 @@ const googleProvider = new GoogleAuthProvider();
   // Never rebuild the canvas out from under someone mid-drag / mid-stroke.
   let deferredRemoteRender = false;
   function isInteracting(){
-    return !!(dragging || resizingCard || rotatingCard || drawingStroke || drawingArrow || panning);
+    return !!(dragging || resizingCard || rotatingCard || drawingStroke || draggingEndpoint || draggingWholeArrow || panning);
   }
   function reflectAfterRemoteChange(){
     if(isInteracting()){ deferredRemoteRender = true; return; }
@@ -1426,13 +1423,6 @@ const googleProvider = new GoogleAuthProvider();
   showSidebarBtn.addEventListener('click', () => setSidebarCollapsed(false));
 
   // ---------- Navigation: home / house / room ----------
-  function setArrowMode(on){
-    state.arrowMode = on;
-    arrowBtn.classList.toggle('active', on);
-    canvasWrap.classList.toggle('arrow-mode', on);
-    if(on) setDrawMode(false);
-  }
-
   function setDrawMode(on){
     state.drawMode = on;
     if(!on) state.eraserMode = false;
@@ -1441,7 +1431,6 @@ const googleProvider = new GoogleAuthProvider();
     canvasWrap.classList.toggle('eraser-mode', on && state.eraserMode);
     drawToolbar.classList.toggle('visible', on);
     eraserBtn.classList.toggle('active', state.eraserMode);
-    if(on) setArrowMode(false);
   }
 
   function hideAllViews(){
@@ -1452,7 +1441,6 @@ const googleProvider = new GoogleAuthProvider();
 
   function goHome(){
     state.view = 'home';
-    setArrowMode(false);
     hideAllViews();
     homeView.classList.add('visible');
     renderHome();
@@ -1462,7 +1450,6 @@ const googleProvider = new GoogleAuthProvider();
   function goToHouse(houseId){
     state.view = 'house';
     state.currentHouseId = houseId;
-    setArrowMode(false);
     hideAllViews();
     houseView.classList.add('visible');
     renderSidebar();
@@ -1474,7 +1461,6 @@ const googleProvider = new GoogleAuthProvider();
     state.currentHouseId = houseId;
     state.currentRoomId = roomId;
     state.selectedArrowId = null;
-    setArrowMode(false);
     hideAllViews();
     boardView.classList.remove('hidden');
     renderSidebar();
@@ -2779,11 +2765,6 @@ const googleProvider = new GoogleAuthProvider();
       if(!state.eraserMode){ e.stopPropagation(); startFreehandDraw(e); }
       return;
     }
-    if(state.arrowMode){
-      e.stopPropagation();
-      startArrowDraw(e, {cardId: card.id});
-      return;
-    }
     if(e.target.closest('.icon-btn') || e.target.closest('.swatch') || e.target.closest('input') || e.target.closest('.resize-handle') || e.target.closest('.rotate-handle')) return;
     dragCandidate = {card, el, startX: e.clientX, startY: e.clientY};
   }
@@ -2909,12 +2890,10 @@ const googleProvider = new GoogleAuthProvider();
       if(!state.eraserMode) startFreehandDraw(e);
       return;
     }
-    if(state.arrowMode){ startArrowDraw(e, null); return; }
     panning = true;
     canvasWrap.classList.add('panning');
   });
   window.addEventListener('mousemove', e => {
-    if(drawingArrow){ updateArrowDraw(e); return; }
     if(drawingStroke){ updateFreehandDraw(e); return; }
     if(!panning) return;
     const r = currentRoom();
@@ -2923,13 +2902,12 @@ const googleProvider = new GoogleAuthProvider();
     applyTransform();
   });
   window.addEventListener('mouseup', e => {
-    if(drawingArrow){ finishArrowDraw(e); }
     if(drawingStroke){ finishFreehandDraw(e); }
     panning = false;
     canvasWrap.classList.remove('panning');
   });
 
-  arrowBtn.addEventListener('click', () => setArrowMode(!state.arrowMode));
+  arrowBtn.addEventListener('click', () => addDefaultArrow());
   drawBtn.addEventListener('click', () => setDrawMode(!state.drawMode));
 
   document.querySelectorAll('.draw-thickness-btn').forEach(btn => {
@@ -2952,10 +2930,9 @@ const googleProvider = new GoogleAuthProvider();
     canvasWrap.classList.toggle('eraser-mode', state.eraserMode);
   });
 
-  // ---------- Freehand / card-to-card arrow drawing ----------
-  let drawingArrow = null;
-  let tempArrowEl = null;
-
+  // ---------- Freehand drawing (Draw tool) ----------
+  let drawingStroke = null;
+  let drawTempPath = null;
   function screenToCanvas(e){
     const r = currentRoom();
     const rect = canvasWrap.getBoundingClientRect();
@@ -2964,10 +2941,6 @@ const googleProvider = new GoogleAuthProvider();
       y: (e.clientY - rect.top - r.pan.y) / r.zoom
     };
   }
-
-  // ---------- Freehand drawing (Draw tool) ----------
-  let drawingStroke = null;
-  let drawTempPath = null;
   function startFreehandDraw(e){
     const p = screenToCanvas(e);
     drawingStroke = {points: [p], color: state.drawColor, thickness: state.drawThickness};
@@ -3009,61 +2982,24 @@ const googleProvider = new GoogleAuthProvider();
     drawOverlay();
   }
 
-  function cardCenter(card){
-    const el = canvas.querySelector(`[data-id="${card.id}"]`);
-    const h = el ? el.offsetHeight : 60;
-    return {x: card.x + card.w/2, y: card.y + h/2};
-  }
-
-  function startArrowDraw(e, startAnchor){
-    const startPoint = startAnchor ? cardCenter(findCard(startAnchor.cardId)) : screenToCanvas(e);
-    drawingArrow = {
-      startAnchor: startAnchor ? {cardId: startAnchor.cardId} : {x: startPoint.x, y: startPoint.y},
-      startPoint, currentPoint: startPoint
+  // Arrow creation, Milanote-style: clicking the tool places a ready-made
+  // arrow immediately, already selected with its drag handles visible —
+  // there's no separate "now click-drag on the canvas to draw it" step.
+  // Positioning happens entirely through the endpoint/body/bend dragging
+  // already wired up in drawOverlay().
+  function addDefaultArrow(){
+    setDrawMode(false);
+    const center = viewportCenterCanvasCoords();
+    const half = 70;
+    const arrow = {
+      id: nextId(),
+      from: {x: center.x - half, y: center.y + half * 0.6},
+      to: {x: center.x + half, y: center.y - half * 0.6}
     };
-    tempArrowEl = document.createElementNS('http://www.w3.org/2000/svg','line');
-    tempArrowEl.setAttribute('class', 'thread draw-temp');
-    tempArrowEl.setAttribute('marker-end','url(#arrowhead)');
-    tempArrowEl.setAttribute('x1', startPoint.x);
-    tempArrowEl.setAttribute('y1', startPoint.y);
-    tempArrowEl.setAttribute('x2', startPoint.x);
-    tempArrowEl.setAttribute('y2', startPoint.y);
-    connLayer.appendChild(tempArrowEl);
-  }
-
-  function updateArrowDraw(e){
-    const p = screenToCanvas(e);
-    drawingArrow.currentPoint = p;
-    tempArrowEl.setAttribute('x2', p.x);
-    tempArrowEl.setAttribute('y2', p.y);
-  }
-
-  function finishArrowDraw(e){
-    const endCardEl = e.target && e.target.closest ? e.target.closest('.card') : null;
-    const endPoint = screenToCanvas(e);
-    let endAnchor;
-    if(endCardEl && !(drawingArrow.startAnchor.cardId === endCardEl.dataset.id)){
-      endAnchor = {cardId: endCardEl.dataset.id};
-    } else {
-      endAnchor = {x: endPoint.x, y: endPoint.y};
-    }
-
-    const dx = drawingArrow.currentPoint.x - drawingArrow.startPoint.x;
-    const dy = drawingArrow.currentPoint.y - drawingArrow.startPoint.y;
-    const longEnough = Math.hypot(dx, dy) > 6;
-    const isCardToCard = drawingArrow.startAnchor.cardId && endAnchor.cardId;
-
-    if(longEnough || isCardToCard){
-      pushHistory();
-      currentRoom().arrows.push({
-        id: nextId(),
-        from: drawingArrow.startAnchor,
-        to: endAnchor
-      });
-    }
-    if(tempArrowEl) tempArrowEl.remove();
-    tempArrowEl = null;
-    drawingArrow = null;
+    pushHistory();
+    currentRoom().arrows.push(arrow);
+    state.selectedArrowId = arrow.id;
+    scheduleSaveBoard();
     drawOverlay();
   }
 
@@ -3201,12 +3137,10 @@ const googleProvider = new GoogleAuthProvider();
       hit.setAttribute('d', d);
       hit.setAttribute('class', 'thread-hit');
       hit.addEventListener('mousedown', e => {
-        if(state.arrowMode) return;
         e.stopPropagation();
         wholeArrowCandidate = {arrow, startX: e.clientX, startY: e.clientY};
       });
       hit.addEventListener('click', e => {
-        if(state.arrowMode) return;
         e.stopPropagation();
         state.selectedArrowId = arrow.id;
         drawOverlay();
