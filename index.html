@@ -774,16 +774,22 @@ const googleProvider = new GoogleAuthProvider();
   if(typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY'){
     emailjs.init(EMAILJS_PUBLIC_KEY);
   }
-  function sendInviteEmail(toEmail, houseOrCommunityName, message, link){
+  // `links` = {signin, signup}. Both URLs are also written straight into the
+  // message text by the caller, so the email has working links even if the
+  // EmailJS template only shows {{message}}. They're ALSO passed separately
+  // as {{link}} / {{signup_link}} in case the template wants real buttons.
+  function sendInviteEmail(toEmail, houseOrCommunityName, message, links){
     if(typeof emailjs === 'undefined' || EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY'){
       console.log('[EmailJS not configured yet] Would have emailed', toEmail, '—', message);
       return;
     }
+    const home = `${location.origin}${location.pathname}`;
     emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email: toEmail,
       house_name: houseOrCommunityName,
       message,
-      link: link || `${location.origin}${location.pathname}`
+      link: (links && links.signin) || home,
+      signup_link: (links && links.signup) || home
     }).catch(err => console.error('Email send failed', err));
   }
 
@@ -874,6 +880,8 @@ const googleProvider = new GoogleAuthProvider();
       if(houseId){
         state.inviteContext = {houseId, houseName: houseName || 'a house'};
       }
+      // ?mode=signup opens the "Create your account" screen instead of sign-in
+      if(params.get('mode') === 'signup') state.gateStage = 'signup';
     } catch(err){ /* ignore malformed URL */ }
   })();
 
@@ -3357,12 +3365,19 @@ const googleProvider = new GoogleAuthProvider();
       scheduleSaveBoard();
       const inviteUrl = new URL(location.href);
       inviteUrl.search = '';
+      inviteUrl.hash = '';
       inviteUrl.searchParams.set('invite', h.id);
       inviteUrl.searchParams.set('house', h.name);
+      const signinLink = inviteUrl.toString();
+      inviteUrl.searchParams.set('mode', 'signup');
+      const signupLink = inviteUrl.toString();
       sendInviteEmail(
         email, h.name,
-        `You've been added to "${h.name}" on The Third Place. Open the link below and sign in (or create an account) with this email address — ${email} — to see it.`,
-        inviteUrl.toString()
+        `You've been added to "${h.name}" on The Third Place.\n\n` +
+        `Already have an account? Sign in:\n${signinLink}\n\n` +
+        `New here? Create your account:\n${signupLink}\n\n` +
+        `Use this email address — ${email} — so the house shows up for you.`,
+        {signin: signinLink, signup: signupLink}
       );
     }
     addBtn.addEventListener('click', submitInvite);
