@@ -484,6 +484,20 @@
   .ci-due-btn{width:16px;height:16px;border:none;background:none;cursor:pointer;font-size:11px;opacity:0;flex-shrink:0;padding:0;display:flex;align-items:center;justify-content:center;}
   .check-item:hover .ci-due-btn{opacity:.6;}
   .ci-due-btn:hover{opacity:1 !important;}
+  .ci-asg-btn{width:18px;height:18px;border:none;background:none;cursor:pointer;font-size:12px;opacity:0;flex-shrink:0;padding:0;display:flex;align-items:center;justify-content:center;color:inherit;}
+  .check-item:hover .ci-asg-btn{opacity:.6;}
+  .ci-asg-btn:hover{opacity:1 !important;}
+  .ci-av{width:18px;height:18px;border-radius:50%;color:#fff;font-size:9px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;}
+  .ci-av.gone{background:#aaa !important;}
+  .asg-pop{position:fixed;z-index:9999;width:200px;background:#fff;color:#222;border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:5px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:13px;}
+  [data-theme="dark"] .asg-pop{background:#2a2a2a;color:#eee;border-color:rgba(255,255,255,.15);}
+  .asg-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;}
+  .asg-item:hover,.asg-item.sel{background:rgba(127,127,127,.18);}
+  .asg-item .ci-av{cursor:pointer;}
+  .asg-item .asg-check{margin-left:auto;font-size:12px;}
+  .asg-filter{display:flex;gap:4px;margin-top:6px;font-size:10.5px;}
+  .asg-filter button{border:none;background:rgba(127,127,127,.15);color:inherit;border-radius:10px;padding:1px 8px;cursor:pointer;font-size:10.5px;}
+  .asg-filter button.on{background:#ff5a36;color:#fff;}
   .ci-due-pill{font-size:9.5px;font-weight:600;background:#e4e4fb;color:#33339a;padding:2px 7px;border-radius:10px;flex-shrink:0;white-space:nowrap;cursor:pointer;}
   .ci-due-input{font-size:10px;border:1px solid #ddd2c4;border-radius:5px;padding:1px 3px;flex-shrink:0;font-family:inherit;}
 
@@ -2127,6 +2141,25 @@ const googleProvider = new GoogleAuthProvider();
       card.items.forEach(it => list.appendChild(checkItemEl(card, it, list)));
       frag.appendChild(list);
 
+      const flt = document.createElement('div');
+      flt.className = 'asg-filter';
+      ['all','mine'].forEach(k => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = k === 'all' ? 'All' : 'Mine';
+        b.addEventListener('mousedown', e => e.stopPropagation());
+        b.addEventListener('click', () => { assignFilters[card.id] = k; refreshFlt(); applyAssignFilter(card, list); });
+        b.dataset.k = k; flt.appendChild(b);
+      });
+      function refreshFlt(){
+        const cur = assignFilters[card.id] || 'all';
+        flt.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === cur));
+        flt.style.display = card.items.some(i => i.assignee) || cur === 'mine' ? 'flex' : 'none';
+      }
+      refreshFlt();
+      applyAssignFilter(card, list);
+      list.addEventListener('asg', refreshFlt);
+      frag.appendChild(flt);
+
       const add = document.createElement('div');
       add.className = 'check-add';
       add.contentEditable = 'true';
@@ -2648,6 +2681,69 @@ const googleProvider = new GoogleAuthProvider();
     return wrap;
   }
 
+  // ---------- Checklist assignees ----------
+  function houseMembersList(){
+    const h = currentHouse();
+    const out = []; const seen = new Set();
+    function add(email, name){
+      email = (email||'').toLowerCase(); if(!email || seen.has(email)) return;
+      seen.add(email);
+      const g = (state.members||[]).find(m => (m.email||'').toLowerCase() === email);
+      const nm = (name || (g && g.name) || email.split('@')[0]);
+      out.push({email, name: nm});
+    }
+    if(!h) return out;
+    add(h.ownerEmail);
+    (h.memberEmails||[]).forEach(e => add(e));
+    (h.invitedMembers||[]).forEach(m => add(m.email, m.name));
+    return out;
+  }
+  function memberByEmail(email){
+    email = (email||'').toLowerCase();
+    return houseMembersList().find(m => m.email === email) || null;
+  }
+  const assignFilters = {};
+  let asgPop = null;
+  function closeAssignPop(){ if(asgPop){ asgPop.remove(); asgPop = null; } }
+  document.addEventListener('mousedown', e => { if(asgPop && !asgPop.contains(e.target)) closeAssignPop(); }, true);
+  function openAssignPop(anchor, item, onPick){
+    closeAssignPop();
+    const pop = document.createElement('div');
+    pop.className = 'asg-pop';
+    const mine = (state.myEmail||'').toLowerCase();
+    function row(m){
+      const r = document.createElement('div');
+      r.className = 'asg-item' + ((m && item.assignee === m.email) || (!m && !item.assignee) ? ' sel' : '');
+      if(m){
+        const a = document.createElement('span'); a.className = 'ci-av';
+        a.style.background = colorFor(m.name); a.textContent = initials(m.name);
+        const n = document.createElement('span'); n.textContent = m.name + (m.email === mine ? ' (you)' : '');
+        r.appendChild(a); r.appendChild(n);
+      } else {
+        r.textContent = 'Unassigned';
+      }
+      if(r.classList.contains('sel')){ const c = document.createElement('span'); c.className='asg-check'; c.textContent='✓'; r.appendChild(c); }
+      r.addEventListener('click', e => { e.stopPropagation(); onPick(m ? m.email : null); closeAssignPop(); });
+      return r;
+    }
+    pop.appendChild(row(null));
+    houseMembersList().forEach(m => pop.appendChild(row(m)));
+    document.body.appendChild(pop);
+    const b = anchor.getBoundingClientRect();
+    let left = Math.min(b.left, window.innerWidth - 210);
+    let top = b.bottom + 4;
+    if(top + pop.offsetHeight > window.innerHeight) top = Math.max(8, b.top - pop.offsetHeight - 4);
+    pop.style.left = Math.max(8,left) + 'px'; pop.style.top = top + 'px';
+    asgPop = pop;
+  }
+  function applyAssignFilter(card, list){
+    const f = assignFilters[card.id] || 'all';
+    const mine = (state.myEmail||'').toLowerCase();
+    list.querySelectorAll('.check-item').forEach(r => {
+      r.style.display = (f === 'mine' && (r.dataset.assignee||'') !== mine) ? 'none' : '';
+    });
+  }
+
   function checkItemEl(card, item, listEl){
     const row = document.createElement('div');
     row.className = 'check-item' + (item.done ? ' done' : '');
@@ -2726,10 +2822,46 @@ const googleProvider = new GoogleAuthProvider();
       row.remove();
       refreshAllCalendarCards();
     });
+    const asgBtn = document.createElement('button');
+    asgBtn.type = 'button';
+    asgBtn.className = 'ci-asg-btn';
+    asgBtn.title = 'Assign to someone';
+    asgBtn.textContent = '👤';
+    const av = document.createElement('span');
+    av.className = 'ci-av';
+    function renderAssignee(){
+      row.dataset.assignee = item.assignee || '';
+      if(item.assignee){
+        const m = memberByEmail(item.assignee);
+        const nm = m ? m.name : item.assignee.split('@')[0];
+        av.textContent = initials(nm);
+        av.style.background = m ? colorFor(nm) : '';
+        av.classList.toggle('gone', !m);
+        av.title = m ? nm : nm + ' (no longer in this house)';
+        av.style.display = 'inline-flex'; asgBtn.style.display = 'none';
+      } else {
+        av.style.display = 'none'; asgBtn.style.display = 'flex';
+      }
+      const lst = row.parentElement; if(lst){ applyAssignFilter(card, lst); row.dispatchEvent(new CustomEvent('asg',{bubbles:true})); }
+    }
+    function pick(e){
+      e.stopPropagation();
+      openAssignPop(e.currentTarget, item, email => {
+        pushHistory();
+        if(email){ item.assignee = email; } else { delete item.assignee; }
+        scheduleSaveBoard();
+        renderAssignee();
+      });
+    }
+    [asgBtn, av].forEach(x => { x.addEventListener('mousedown', e => e.stopPropagation()); x.addEventListener('click', pick); });
+
     row.appendChild(cb);
     row.appendChild(text);
     row.appendChild(item.due ? duePill : dueBtn);
+    row.appendChild(asgBtn);
+    row.appendChild(av);
     row.appendChild(del);
+    renderAssignee();
     if(item.due) duePill.textContent = formatDue(item.due);
     return row;
   }
