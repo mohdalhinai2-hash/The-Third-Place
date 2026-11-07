@@ -214,7 +214,9 @@
   .sidebar-collapse-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
   .sidebar-collapse-btn:hover{background:var(--sidebar-hover);color:var(--sidebar-ink);}
   .show-sidebar-btn{
-    position:absolute;top:50%;left:10px;transform:translateY(-50%);z-index:20;width:34px;height:34px;border-radius:50%;
+    /* Top-left, level with the room toolbar's home button (it used to sit at
+       mid-height, right on top of the tool rail). */
+    position:absolute;top:12px;left:14px;z-index:20;width:34px;height:34px;border-radius:8px;
     background:var(--surface);border:1px solid var(--surface-border);color:var(--ink);cursor:pointer;
     display:none;align-items:center;justify-content:center;
     box-shadow:0 4px 12px -2px rgba(46,42,34,.3);
@@ -222,7 +224,17 @@
   }
   .show-sidebar-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
   .show-sidebar-btn.visible{display:flex;}
-  .show-sidebar-btn:hover{transform:translateY(-50%) scale(1.06);}
+  .show-sidebar-btn:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  /* While the sidebar is hidden, make room for the button so it never covers
+     the home button or the page heading. */
+  .app.sidebar-hidden .home-view, .app.sidebar-hidden .house-view{padding-top:62px;}
+  /* Inside a room the button lives IN the toolbar, just before the home
+     button, so it always lines up with it; the floating one is hidden there. */
+  .main:has(.board-view:not(.hidden)) > .show-sidebar-btn{display:none !important;}
+  .toolbar-sidebar-btn{display:none;border:1px solid var(--surface-border,#e2dac6);background:var(--surface,#fff);color:var(--ink);border-radius:8px;width:34px;height:34px;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;padding:0;}
+  .toolbar-sidebar-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+  .toolbar-sidebar-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .app.sidebar-hidden .toolbar-sidebar-btn{display:flex;}
   .brand{font-family:'Young Serif',serif;font-weight:400;font-size:22px;letter-spacing:.2px;margin-bottom:2px;color:var(--sidebar-ink);cursor:pointer;background:none;border:none;padding:0;text-align:left;}
   .brand small{display:block;font-family:'Inter';font-style:normal;font-weight:500;font-size:11.5px;color:var(--sidebar-ink-soft);letter-spacing:.2px;margin-top:3px;}
   /* "HOUSES" sits with the list it titles (more space above, little below),
@@ -267,10 +279,9 @@
   @media (max-width: 760px){
     .sidebar{position:absolute;top:0;bottom:0;left:0;z-index:90;width:260px;box-shadow:0 0 0 100vmax rgba(20,16,12,.35), 8px 0 24px rgba(0,0,0,.2);}
     .sidebar.collapsed{box-shadow:none;}
-    .show-sidebar-btn{top:12px;transform:none;}
-    .show-sidebar-btn:hover{transform:scale(1.06);}
     .home-view, .house-view{padding:62px 16px 32px;}
-    .toolbar{padding:10px 12px 10px 54px;gap:8px;}
+    .toolbar{padding:10px 12px;gap:8px;}
+    .show-sidebar-btn{top:10px;left:12px;}
     .home-grid{grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:14px;}
     .house-view-title{font-size:24px;}
     .search-box{min-width:0;flex:1 1 140px;}
@@ -307,7 +318,9 @@
     width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
     font-size:16px;border:1px solid transparent;transition:transform .1s ease;position:relative;
   }
-  .rail-icon-text{font-weight:700;font-size:15px;}
+  /* Emoji icons: one consistent size, and the system emoji font so they
+     render in colour on every platform. */
+  .rail-icon{font-size:19px;line-height:1;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;}
   .rail-label{font-size:9px;color:var(--ink-soft);font-weight:600;}
   .rail-btn:hover .rail-icon{transform:translateY(-1px);}
   .rail-icon::after{
@@ -671,6 +684,20 @@
   .expand-editor{font-size:14px;line-height:1.7;color:var(--ink);outline:none;min-height:200px;}
 
   .card.dimmed{opacity:.22;}
+
+  /* ---------- Drag from rail / drop / selection / toast ---------- */
+  body.rail-dragging, body.rail-dragging *{user-select:none !important;cursor:grabbing !important;}
+  .rail-ghost{position:fixed;z-index:400;pointer-events:none;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:12px;background:var(--surface);border:2px solid var(--accent);box-shadow:0 10px 24px -6px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:24px;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;transform:rotate(-4deg);}
+  .canvas-wrap.drop-target{box-shadow:inset 0 0 0 3px var(--accent);}
+  .card.selected{outline:2.5px solid var(--accent);outline-offset:4px;}
+  .marquee{position:absolute;z-index:30;pointer-events:none;border:1.5px solid var(--accent);background:rgba(184,64,31,.08);border-radius:4px;}
+  .selection-bar{position:absolute;left:50%;bottom:18px;transform:translate(-50%,12px);z-index:40;display:flex;align-items:center;gap:8px;background:var(--surface);color:var(--ink);border:1px solid var(--surface-border);border-radius:12px;padding:6px 6px 6px 14px;font-size:13px;font-weight:600;box-shadow:0 10px 26px -8px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .15s ease, transform .15s ease;}
+  .selection-bar.visible{opacity:1;pointer-events:auto;transform:translate(-50%,0);}
+  .selection-bar button{font-family:inherit;font-size:12.5px;font-weight:700;border-radius:8px;padding:6px 11px;cursor:pointer;border:1px solid var(--surface-border);background:none;color:var(--ink);}
+  .selection-bar button:first-of-type{background:var(--danger);border-color:var(--danger);color:var(--on-accent);}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);z-index:500;max-width:min(440px,calc(100vw - 32px));background:#2a2420;color:#f8f5ef;border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.45;box-shadow:0 12px 30px -8px rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .2s ease, transform .2s ease;}
+  .toast.visible{opacity:1;transform:translate(-50%,0);}
+  @media (prefers-reduced-motion: reduce){ .selection-bar, .toast{transition:none;} }
   ::selection{background:var(--accent-soft);}
 </style>
 </head>
@@ -745,6 +772,9 @@
 
     <div class="board-view" id="boardView">
       <div class="toolbar">
+        <button type="button" class="toolbar-sidebar-btn" id="toolbarShowSidebarBtn" title="Show sidebar" aria-label="Show sidebar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
         <button class="home-btn" id="homeBtn" title="Back to all houses">
           <svg viewBox="0 0 24 24"><path d="M12 3.2 3 11h2.4v9h5.2v-6h2.8v6h5.2v-9H21z"/></svg>
         </button>
@@ -790,31 +820,31 @@
       <div class="board-body">
         <div class="tool-rail" id="toolRail">
           <button class="rail-btn rail-note" id="addNote" title="Add a note">
-            <span class="rail-icon">✎</span><span class="rail-label">Note</span>
+            <span class="rail-icon" aria-hidden="true">📝</span><span class="rail-label">Note</span>
           </button>
           <button class="rail-btn rail-image" id="addImage" title="Add an image">
-            <span class="rail-icon">▧</span><span class="rail-label">Image</span>
+            <span class="rail-icon" aria-hidden="true">🖼️</span><span class="rail-label">Image</span>
           </button>
           <button class="rail-btn rail-check" id="addCheck" title="Add a checklist">
-            <span class="rail-icon">☑</span><span class="rail-label">List</span>
+            <span class="rail-icon" aria-hidden="true">✅</span><span class="rail-label">List</span>
           </button>
           <button class="rail-btn rail-headline" id="addHeadline" title="Add a headline">
-            <span class="rail-icon rail-icon-text">H</span><span class="rail-label">Headline</span>
+            <span class="rail-icon" aria-hidden="true">🔠</span><span class="rail-label">Headline</span>
           </button>
           <button class="rail-btn rail-calendar" id="addCalendar" title="Add a calendar">
-            <span class="rail-icon">📅</span><span class="rail-label">Calendar</span>
+            <span class="rail-icon" aria-hidden="true">📅</span><span class="rail-label">Calendar</span>
           </button>
           <button class="rail-btn rail-book" id="addBook" title="Add a book">
-            <span class="rail-icon">📖</span><span class="rail-label">Book</span>
+            <span class="rail-icon" aria-hidden="true">📖</span><span class="rail-label">Book</span>
           </button>
           <button class="rail-btn rail-bookshelf" id="addBookshelf" title="Add a bookshelf">
-            <span class="rail-icon">📚</span><span class="rail-label">Shelf</span>
+            <span class="rail-icon" aria-hidden="true">📚</span><span class="rail-label">Shelf</span>
           </button>
           <button class="rail-btn rail-arrow" id="arrowBtn" title="Add an arrow — drag its ends, body, or bend point to position it">
-            <span class="rail-icon">↗</span><span class="rail-label">Arrow</span>
+            <span class="rail-icon" aria-hidden="true">↗️</span><span class="rail-label">Arrow</span>
           </button>
           <button class="rail-btn rail-draw" id="drawBtn" title="Draw a freehand line">
-            <span class="rail-icon">✏️</span><span class="rail-label">Draw</span>
+            <span class="rail-icon" aria-hidden="true">✏️</span><span class="rail-label">Draw</span>
           </button>
         </div>
 
@@ -830,7 +860,7 @@
           <div class="canvas" id="canvas">
             <svg class="conn-layer" id="connLayer" width="9000" height="6000"></svg>
           </div>
-          <div class="empty-hint" id="emptyHint">This room is empty — add a note to start thinking out loud.</div>
+          <div class="empty-hint" id="emptyHint">This room is empty — double-click anywhere to drop a note,<br>drag a tool in from the left, or paste an image.</div>
         </div>
       </div>
     </div>
@@ -1230,7 +1260,7 @@ const googleProvider = new GoogleAuthProvider();
   // Never rebuild the canvas out from under someone mid-drag / mid-stroke.
   let deferredRemoteRender = false;
   function isInteracting(){
-    return !!(dragging || resizingCard || rotatingCard || drawingStroke || draggingEndpoint || draggingWholeArrow || panning);
+    return !!(dragging || resizingCard || rotatingCard || drawingStroke || draggingEndpoint || draggingWholeArrow || panning || marquee);
   }
   function reflectAfterRemoteChange(){
     if(isInteracting()){ deferredRemoteRender = true; return; }
@@ -1247,6 +1277,14 @@ const googleProvider = new GoogleAuthProvider();
   async function doSaveHouse(h){
     pendingSaveData[h.id] = h;
     const sent = serializeHouse(h);
+    // Firestore refuses documents over 1 MB, and a whole house is one
+    // document — so warn before that point instead of failing silently.
+    const approxBytes = JSON.stringify(sent).length;
+    if(approxBytes > 900000){
+      showToast(approxBytes > 1040000
+        ? `"${h.name}" is too full to save — remove a few images from its rooms.`
+        : `"${h.name}" is nearly full (lots of images). Remove some soon, or it will stop saving.`, 7000);
+    }
     let merged = null;
     try{
       merged = await runTransaction(db, async tx => {
@@ -1653,18 +1691,24 @@ const googleProvider = new GoogleAuthProvider();
   function setSidebarCollapsed(collapsed){
     sidebar.classList.toggle('collapsed', collapsed);
     showSidebarBtn.classList.toggle('visible', collapsed);
+    document.getElementById('appRoot').classList.toggle('sidebar-hidden', collapsed);
     collapseSidebarBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     showSidebarBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     sidebar.inert = collapsed; // hidden sidebar can't be tabbed into
     if(!collapsed && narrowMQ.matches) setTimeout(() => (sidebar.querySelector('.sidebar-nav-item') || sidebar).focus(), 0);
   }
   function closeSidebarIfNarrow(){ if(narrowMQ.matches) setSidebarCollapsed(true); }
-  collapseSidebarBtn.addEventListener('click', () => { setSidebarCollapsed(true); showSidebarBtn.focus(); });
+  collapseSidebarBtn.addEventListener('click', () => {
+    setSidebarCollapsed(true);
+    const inRoom = !document.getElementById('boardView').classList.contains('hidden');
+    (inRoom ? document.getElementById('toolbarShowSidebarBtn') : showSidebarBtn).focus();
+  });
   showSidebarBtn.addEventListener('click', () => setSidebarCollapsed(false));
+  document.getElementById('toolbarShowSidebarBtn').addEventListener('click', () => setSidebarCollapsed(false));
   narrowMQ.addEventListener('change', () => setSidebarCollapsed(narrowMQ.matches));
   // Tapping the dimmed page beside the open sidebar closes it
   document.querySelector('.main').addEventListener('mousedown', e => {
-    if(narrowMQ.matches && !sidebar.classList.contains('collapsed') && !e.target.closest('#showSidebarBtn')) setSidebarCollapsed(true);
+    if(narrowMQ.matches && !sidebar.classList.contains('collapsed') && !e.target.closest('#showSidebarBtn, #toolbarShowSidebarBtn')) setSidebarCollapsed(true);
   }, true);
   if(narrowMQ.matches) setSidebarCollapsed(true);
   document.addEventListener('keydown', e => {
@@ -1708,7 +1752,7 @@ const googleProvider = new GoogleAuthProvider();
   function goToRoom(houseId, roomId){
     state.view = 'room';
     state.currentHouseId = houseId;
-    if(state.currentRoomId !== roomId) searchInput.value = '';
+    if(state.currentRoomId !== roomId){ searchInput.value = ''; selectedCardIds.clear(); }
     state.currentRoomId = roomId;
     state.selectedArrowId = null;
     hideAllViews();
@@ -2105,6 +2149,18 @@ const googleProvider = new GoogleAuthProvider();
     // Typing in any field (search box, book title, image URL…) must not
     // delete the selected arrow or trigger the board's undo.
     if(ae && (ae.isContentEditable || ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
+    if((e.key === 'Delete' || e.key === 'Backspace') && selectedCardIds.size){
+      e.preventDefault();
+      deleteSelectedCards();
+      return;
+    }
+    if(e.key === 'Escape' && selectedCardIds.size){ clearCardSelection(); return; }
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a'){
+      e.preventDefault();
+      currentRoom().cards.forEach(c => selectedCardIds.add(c.id));
+      refreshSelectionUI();
+      return;
+    }
     if((e.key === 'Delete' || e.key === 'Backspace') && state.selectedArrowId){
       e.preventDefault();
       const r = currentRoom();
@@ -2153,6 +2209,7 @@ const googleProvider = new GoogleAuthProvider();
     updateZoomLabel();
     updateHistoryButtons();
     applySearch();
+    refreshSelectionUI();
   }
 
   function applyTransform(){
@@ -2177,14 +2234,25 @@ const googleProvider = new GoogleAuthProvider();
     };
   }
 
-  function addCard(type){
+  // opts.at     — canvas point to place the card under (drag-and-drop,
+  //               double-click, paste); without it the card goes mid-view.
+  // opts.fields — extra card fields (e.g. {url} for a pasted image)
+  // opts.focus  — false to skip putting the cursor in the new card
+  function addCard(type, opts = {}){
     pushHistory();
     const r = currentRoom();
-    const pos = viewportCenterCanvasCoords();
     const jitter = () => (Math.random()*40 - 20);
+    let x, y;
+    if(opts.at){
+      x = opts.at.x - DEFAULT_W[type] / 2;
+      y = opts.at.y - 24;
+    } else {
+      const pos = viewportCenterCanvasCoords();
+      x = pos.x + jitter(); y = pos.y + jitter();
+    }
     const base = {
       id: nextId(), type,
-      x: pos.x + jitter(), y: pos.y + jitter(),
+      x, y,
       w: DEFAULT_W[type], color: 'cream',
       rotation: (Math.random()*3 - 1.5).toFixed(2)*1,
     };
@@ -2203,11 +2271,13 @@ const googleProvider = new GoogleAuthProvider();
       base.status = 'want'; base.notes = '';
     }
     if(type === 'bookshelf'){ /* no extra fields — purely reads other book cards */ }
+    if(opts.fields) Object.assign(base, opts.fields);
 
     r.cards.push(base);
     const el = buildCardEl(base);
     canvas.appendChild(el);
     emptyHint.style.display = 'none';
+    if(opts.focus === false) return base;
 
     requestAnimationFrame(() => {
       if(type === 'note'){ el.querySelector('.note-text').focus(); }
@@ -2215,15 +2285,63 @@ const googleProvider = new GoogleAuthProvider();
       if(type === 'image'){ el.querySelector('input')?.focus(); }
       if(type === 'checklist'){ el.querySelector('.check-title').focus(); document.execCommand('selectAll', false, null); }
     });
+    return base;
   }
 
-  document.getElementById('addNote').addEventListener('click', () => addCard('note'));
-  document.getElementById('addImage').addEventListener('click', () => addCard('image'));
-  document.getElementById('addCheck').addEventListener('click', () => addCard('checklist'));
-  document.getElementById('addHeadline').addEventListener('click', () => addCard('headline'));
-  document.getElementById('addCalendar').addEventListener('click', () => addCard('calendar'));
-  document.getElementById('addBook').addEventListener('click', () => addCard('book'));
-  document.getElementById('addBookshelf').addEventListener('click', () => addCard('bookshelf'));
+  // ---------- Tool rail: click to add mid-view, or DRAG onto the canvas ----------
+  // Dragging a tool shows a small ghost under the pointer; letting go over the
+  // canvas puts the new card right there (Milanote-style).
+  const RAIL_TOOLS = {
+    addNote: 'note', addImage: 'image', addCheck: 'checklist', addHeadline: 'headline',
+    addCalendar: 'calendar', addBook: 'book', addBookshelf: 'bookshelf', arrowBtn: 'arrow'
+  };
+  function placeTool(type, at){
+    if(type === 'arrow') addDefaultArrow(at);
+    else { setDrawMode(false); addCard(type, at ? {at} : {}); }
+  }
+  let railDrag = null;          // {type, btn, startX, startY, ghost}
+  let suppressRailClick = false;
+  function pointOverCanvas(e){
+    const r = canvasWrap.getBoundingClientRect();
+    return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  }
+  Object.entries(RAIL_TOOLS).forEach(([id, type]) => {
+    const btn = document.getElementById(id);
+    btn.title = btn.title + ' — click, or drag it onto the canvas';
+    btn.addEventListener('click', () => {
+      if(suppressRailClick) return;
+      placeTool(type);
+    });
+    btn.addEventListener('mousedown', e => {
+      if(e.button !== 0) return;
+      railDrag = {type, btn, startX: e.clientX, startY: e.clientY, ghost: null};
+    });
+  });
+  window.addEventListener('mousemove', e => {
+    if(!railDrag) return;
+    if(!railDrag.ghost){
+      if(Math.hypot(e.clientX - railDrag.startX, e.clientY - railDrag.startY) < 6) return;
+      const g = document.createElement('div');
+      g.className = 'rail-ghost';
+      g.textContent = railDrag.btn.querySelector('.rail-icon').textContent;
+      document.body.appendChild(g);
+      document.body.classList.add('rail-dragging');
+      railDrag.ghost = g;
+    }
+    railDrag.ghost.style.left = e.clientX + 'px';
+    railDrag.ghost.style.top = e.clientY + 'px';
+    canvasWrap.classList.toggle('drop-target', pointOverCanvas(e));
+  });
+  window.addEventListener('mouseup', e => {
+    if(!railDrag) return;
+    const d = railDrag; railDrag = null;
+    if(!d.ghost) return; // a plain click — the click handler adds it mid-view
+    d.ghost.remove();
+    document.body.classList.remove('rail-dragging');
+    canvasWrap.classList.remove('drop-target');
+    suppressRailClick = true; setTimeout(() => { suppressRailClick = false; }, 0);
+    if(pointOverCanvas(e)) placeTool(d.type, screenToCanvas(e));
+  });
 
   function deleteCard(id){
     pushHistory();
@@ -2240,7 +2358,7 @@ const googleProvider = new GoogleAuthProvider();
   // ---------- Build a card DOM element ----------
   function buildCardEl(card){
     const el = document.createElement('div');
-    el.className = `card type-${card.type}`;
+    el.className = `card type-${card.type}` + (selectedCardIds.has(card.id) ? ' selected' : '');
     el.dataset.id = card.id;
     el.style.left = card.x + 'px';
     el.style.top = card.y + 'px';
@@ -3338,6 +3456,14 @@ const googleProvider = new GoogleAuthProvider();
       return;
     }
     if(e.target.closest('.icon-btn') || e.target.closest('.swatch') || e.target.closest('input') || e.target.closest('.resize-handle') || e.target.closest('.rotate-handle')) return;
+    // Shift+click adds/removes a card from the selection instead of dragging it
+    if(e.shiftKey && !e.target.closest('button, [contenteditable="true"]')){
+      e.preventDefault();
+      toggleCardSelection(card.id);
+      return;
+    }
+    // Pressing on a card outside the selection starts a fresh, single-card drag
+    if(!selectedCardIds.has(card.id)) clearCardSelection();
     dragCandidate = {card, el, startX: e.clientX, startY: e.clientY};
   }
   window.addEventListener('mousemove', e => {
@@ -3370,23 +3496,31 @@ const googleProvider = new GoogleAuthProvider();
       if(Math.hypot(dx, dy) > DRAG_THRESHOLD){
         pushHistory();
         dragging = dragCandidate;
-        dragging.el.classList.add('dragging');
+        // Dragging one of several selected cards moves all of them together
+        dragging.group = (selectedCardIds.has(dragging.card.id) && selectedCardIds.size > 1)
+          ? currentRoom().cards.filter(c => selectedCardIds.has(c.id))
+              .map(c => ({card: c, el: canvas.querySelector(`[data-id="${c.id}"]`)})).filter(g => g.el)
+          : [{card: dragging.card, el: dragging.el}];
+        dragging.group.forEach(g => g.el.classList.add('dragging'));
       }
     }
     if(!dragging) return;
     const zoom = currentRoom().zoom;
-    dragging.card.x += e.movementX / zoom;
-    dragging.card.y += e.movementY / zoom;
+    dragging.group.forEach(g => { g.card.x += e.movementX / zoom; g.card.y += e.movementY / zoom; });
     queueDragFrame(() => {
       if(!dragging) return;
-      dragging.el.style.left = dragging.card.x + 'px';
-      dragging.el.style.top = dragging.card.y + 'px';
-      if(cardHasArrows(dragging.card.id)) drawOverlay();
+      let anyArrows = false;
+      dragging.group.forEach(g => {
+        g.el.style.left = g.card.x + 'px';
+        g.el.style.top = g.card.y + 'px';
+        if(cardHasArrows(g.card.id)) anyArrows = true;
+      });
+      if(anyArrows) drawOverlay();
       scheduleSaveBoard();
     });
   });
   window.addEventListener('mouseup', () => {
-    if(dragging){ dragging.el.classList.remove('dragging'); }
+    if(dragging){ (dragging.group || [dragging]).forEach(g => g.el.classList.remove('dragging')); }
     dragging = null;
     dragCandidate = null;
     resizingCard = null;
@@ -3462,6 +3596,8 @@ const googleProvider = new GoogleAuthProvider();
       if(!state.eraserMode) startFreehandDraw(e);
       return;
     }
+    if(e.shiftKey){ startMarquee(e); return; }
+    clearCardSelection();
     panning = true;
     canvasWrap.classList.add('panning');
   });
@@ -3479,7 +3615,178 @@ const googleProvider = new GoogleAuthProvider();
     canvasWrap.classList.remove('panning');
   });
 
-  arrowBtn.addEventListener('click', () => addDefaultArrow());
+  // ---------- Selecting several cards ----------
+  // Shift+drag on empty canvas draws a selection box; Shift+click toggles a
+  // card. Dragging any selected card moves them all; Delete removes them all.
+  const selectedCardIds = new Set();
+  let marquee = null; // {startX, startY, base:Set, box}
+  const selectionBar = document.createElement('div');
+  selectionBar.className = 'selection-bar';
+  selectionBar.setAttribute('role', 'status');
+  canvasWrap.appendChild(selectionBar);
+
+  function refreshSelectionUI(){
+    const r = currentRoom();
+    if(r) [...selectedCardIds].forEach(id => { if(!r.cards.some(c => c.id === id)) selectedCardIds.delete(id); });
+    canvas.querySelectorAll('.card').forEach(el => el.classList.toggle('selected', selectedCardIds.has(el.dataset.id)));
+    const n = selectedCardIds.size;
+    selectionBar.classList.toggle('visible', n > 1);
+    if(n > 1){
+      selectionBar.innerHTML = '';
+      const label = document.createElement('span');
+      label.textContent = `${n} cards selected`;
+      const del = document.createElement('button');
+      del.type = 'button'; del.textContent = 'Delete';
+      del.addEventListener('mousedown', e => e.stopPropagation());
+      del.addEventListener('click', () => deleteSelectedCards());
+      const clr = document.createElement('button');
+      clr.type = 'button'; clr.textContent = 'Done';
+      clr.addEventListener('mousedown', e => e.stopPropagation());
+      clr.addEventListener('click', () => clearCardSelection());
+      selectionBar.append(label, del, clr);
+    }
+  }
+  function clearCardSelection(){
+    if(!selectedCardIds.size) return;
+    selectedCardIds.clear();
+    refreshSelectionUI();
+  }
+  function toggleCardSelection(id){
+    if(selectedCardIds.has(id)) selectedCardIds.delete(id); else selectedCardIds.add(id);
+    refreshSelectionUI();
+  }
+  function deleteSelectedCards(){
+    const ids = new Set(selectedCardIds);
+    if(!ids.size) return;
+    pushHistory();
+    const r = currentRoom();
+    r.cards = r.cards.filter(c => !ids.has(c.id));
+    r.arrows = r.arrows.filter(a => !ids.has(a.from.cardId) && !ids.has(a.to.cardId));
+    ids.forEach(id => canvas.querySelector(`[data-id="${id}"]`)?.remove());
+    selectedCardIds.clear();
+    refreshSelectionUI();
+    drawOverlay();
+    emptyHint.style.display = r.cards.length ? 'none' : 'block';
+  }
+  function startMarquee(e){
+    const box = document.createElement('div');
+    box.className = 'marquee';
+    canvasWrap.appendChild(box);
+    marquee = {startX: e.clientX, startY: e.clientY, base: new Set(selectedCardIds), box};
+    e.preventDefault();
+  }
+  window.addEventListener('mousemove', e => {
+    if(!marquee) return;
+    const wrap = canvasWrap.getBoundingClientRect();
+    const x1 = Math.min(marquee.startX, e.clientX), y1 = Math.min(marquee.startY, e.clientY);
+    const x2 = Math.max(marquee.startX, e.clientX), y2 = Math.max(marquee.startY, e.clientY);
+    Object.assign(marquee.box.style, {left: (x1 - wrap.left) + 'px', top: (y1 - wrap.top) + 'px', width: (x2 - x1) + 'px', height: (y2 - y1) + 'px'});
+    selectedCardIds.clear();
+    marquee.base.forEach(id => selectedCardIds.add(id));
+    canvas.querySelectorAll('.card').forEach(el => {
+      const b = el.getBoundingClientRect();
+      if(b.right > x1 && b.left < x2 && b.bottom > y1 && b.top < y2) selectedCardIds.add(el.dataset.id);
+    });
+    refreshSelectionUI();
+  });
+  window.addEventListener('mouseup', () => {
+    if(!marquee) return;
+    marquee.box.remove();
+    marquee = null;
+  });
+
+  // ---------- Quick capture: double-click, paste, drop ----------
+  // Double-click empty canvas → a new note right there.
+  canvasWrap.addEventListener('dblclick', e => {
+    if(e.target !== canvasWrap && e.target !== canvas && e.target !== connLayer) return;
+    if(state.drawMode || state.view !== 'room') return;
+    panning = false; canvasWrap.classList.remove('panning');
+    addCard('note', {at: screenToCanvas(e)});
+  });
+
+  // Where the pointer last was over the canvas — pasted things land there.
+  let lastCanvasPointer = null;
+  canvasWrap.addEventListener('mousemove', e => { lastCanvasPointer = screenToCanvas(e); });
+  canvasWrap.addEventListener('mouseleave', () => { lastCanvasPointer = null; });
+
+  function textToNoteHtml(t){
+    return escapeHtml(t).replace(/\r?\n/g, '<br>');
+  }
+  const IMAGE_URL_RE = /^https?:\/\/\S+\.(png|jpe?g|gif|webp|avif|svg)(\?\S*)?$/i;
+
+  // Adds one card per image file (shrunk to fit Firestore) plus, optionally,
+  // a note or image card from plain text. Cards fan out a little so they
+  // don't sit exactly on top of each other.
+  async function captureInto(at, files, text){
+    const origin = at || viewportCenterCanvasCoords();
+    let i = 0;
+    const next = () => ({x: origin.x + i * 28, y: origin.y + (i++) * 28});
+    const images = [...files].filter(f => f.type && f.type.startsWith('image/'));
+    const skipped = files.length - images.length;
+    for(const f of images){
+      try{
+        const url = await shrinkImageFile(f, 1000, 0.75);
+        addCard('image', {at: next(), fields: {url}, focus: false});
+        scheduleSaveBoard();
+      } catch(err){ console.error('Could not read image', err); showToast(`Couldn't read ${f.name || 'that image'}.`); }
+    }
+    if(!images.length && text){
+      const t = text.trim();
+      if(IMAGE_URL_RE.test(t)) addCard('image', {at: next(), fields: {url: t}, focus: false});
+      else addCard('note', {at: next(), fields: {content: textToNoteHtml(t)}, focus: false});
+      scheduleSaveBoard();
+    }
+    if(skipped > 0) showToast(skipped === 1 ? 'Only images can be dropped in — that file was skipped.' : `Only images can be dropped in — ${skipped} files were skipped.`);
+  }
+
+  // Paste (Cmd/Ctrl+V) anywhere in a room — unless you're typing in a field.
+  document.addEventListener('paste', e => {
+    if(state.view !== 'room' || expandModal.classList.contains('visible')) return;
+    const ae = document.activeElement;
+    if(ae && (ae.isContentEditable || ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
+    const cd = e.clipboardData;
+    if(!cd) return;
+    const files = [...cd.files];
+    const text = cd.getData('text/plain');
+    if(!files.length && !(text && text.trim())) return;
+    e.preventDefault();
+    captureInto(lastCanvasPointer, files, text);
+  });
+
+  // Drag images (or text) from the desktop or another tab onto the canvas.
+  canvasWrap.addEventListener('dragover', e => {
+    if(state.view !== 'room') return;
+    const types = [...(e.dataTransfer?.types || [])];
+    if(!types.includes('Files') && !types.includes('text/plain') && !types.includes('text/uri-list')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    canvasWrap.classList.add('drop-target');
+  });
+  canvasWrap.addEventListener('dragleave', e => {
+    if(!canvasWrap.contains(e.relatedTarget)) canvasWrap.classList.remove('drop-target');
+  });
+  canvasWrap.addEventListener('drop', e => {
+    canvasWrap.classList.remove('drop-target');
+    if(state.view !== 'room') return;
+    e.preventDefault();
+    const dt = e.dataTransfer;
+    const text = dt.getData('text/uri-list').split('\n').find(l => l && !l.startsWith('#')) || dt.getData('text/plain');
+    captureInto(screenToCanvas(e), [...dt.files], text);
+  });
+
+  // ---------- Small toast for quiet feedback ----------
+  const toastEl = document.createElement('div');
+  toastEl.className = 'toast';
+  toastEl.setAttribute('role', 'status');
+  toastEl.setAttribute('aria-live', 'polite');
+  document.body.appendChild(toastEl);
+  function showToast(msg, ms = 4200){
+    toastEl.textContent = msg;
+    toastEl.classList.add('visible');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove('visible'), ms);
+  }
+
   drawBtn.addEventListener('click', () => setDrawMode(!state.drawMode));
 
   document.querySelectorAll('.draw-thickness-btn').forEach(btn => {
@@ -3559,9 +3866,9 @@ const googleProvider = new GoogleAuthProvider();
   // there's no separate "now click-drag on the canvas to draw it" step.
   // Positioning happens entirely through the endpoint/body/bend dragging
   // already wired up in drawOverlay().
-  function addDefaultArrow(){
+  function addDefaultArrow(at){
     setDrawMode(false);
-    const center = viewportCenterCanvasCoords();
+    const center = at || viewportCenterCanvasCoords();
     const half = 70;
     const arrow = {
       id: nextId(),
